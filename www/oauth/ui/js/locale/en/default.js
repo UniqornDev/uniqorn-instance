@@ -1,0 +1,56 @@
+
+export default {
+	'ok': "OK",
+	'cancel': "Cancel",
+	'yes': "Yes",
+	'no': "No",
+	
+	'code.validity': "This authentication flow will expire in {}",
+	'code.validity.expired': "For your security, the authentication flow has been terminated because it took too long to complete.",
+	
+	'error.title': "Authentication error",
+	'error.class.': "Unknown cause.",
+	'error.class.expired': "Timeout.",
+	'error.class.invalid_state': "Security precondition did not pass.",
+	'error.class.server_error': "Unexpected internal error.",
+	'error.class.invalid_code': "Invalid intermediate security code.",
+	'error.class.invalid_token': "Invalid token.",
+	'error.class.access_denied': "Access denied.",
+	'error.class.invalid_scope': "Requested access is not acceptable.",
+	'error.class.unsupported_response_type': "Authentication method not supported.",
+	'error.class.invalid_request': "Invalid parameters.",
+	'error.class.invalid_client': "Unrecognized third party.",
+	'error.class.unsupported_grant_type': "Authentication type not supported.",
+	'error.class.invalid_grant': "Invalid intermediate security value.",
+	'error.class.unauthorized_client': "Authentication method not acceptable.",
+	
+	'login.choose.account': "Choose an account",
+	'login.choose.other': "Use another account",
+	'login.error.fetch': "The required information could not be fetched at this time. Please try again or contact your system administrator.",
+	'login.error.empty': "There are no providers available to log you in. Please contact your system administrator to setup one.",
+	'login.choose.provider': "Choose a provider",
+	'login.provider': "Login requested by: {}",
+	'login.auth.password': "Password authentication",
+	'login.login': "Sign in",
+	'login.username': "Username",
+	'login.password': "Password",
+	
+	'mfa.error.fetch': "The required information could not be fetched at this time. Please try again or contact your system administrator.",
+	'mfa.register': "Multifactor registration",
+	'mfa.register.detail': "You are required to enroll in multifactor authentication. You you can use any standard authenticator app for smartphone or other apps or devices that support the TOTP standard.<br /><br />When you are ready, click the following button to generate the QR-Code.",
+	'mfa.register.fail': "Multifactor registration failed",
+	'mfa.enroll': "Enroll",
+	'mfa.ready': "I am ready",
+	'mfa.qrcode': "Scan this QR-Code with your authenticator app:",
+	'mfa.auth': "Multifactor verification",
+	'mfa.otp': "Code",
+	'mfa.login': "Validate",
+	
+	'consent.error.fetch': "The required information could not be fetched at this time. Please try again or contact your system administrator.",
+	'consent.title': "Consent",
+	'consent.provider': "Do you agree to transfer your information and allow <em>{}</em> to act on your behalf ?",
+	'consent.agree': "Yes",
+	'consent.disagree': "No",
+	
+	'': ""
+};

@@ -1,0 +1,19 @@
+
+section.mfa { 
+	position: fixed; padding: 10vh 10vw; top: 0; bottom: 0; left: 0; right: 0; text-align: center; 
+	overflow: auto;
+}
+
+#mfa_panel { width: 25rem; max-height: 25rem; min-height: 10rem; background-color: var(--white); 
+	padding: 2.5rem; box-sizing: border-box; 
+	box-shadow: 1rem 1rem 1rem #0008;
+	overflow-y: hidden; overflow-x: auto; text-align: left; 
+	position: absolute; left: 50%; top: 50%; transform: translateX(-50%) translateY(-50%);
+}
+section.mfa::after { content: attr(data-ttl); position: absolute; bottom: 10vh; right: 10vw; font-size: 0.8rem; color: var(--white); }
+
+#mfa_panel button.raised { display: block; width: 100%; margin: 1rem 0; }
+#mfa_panel p { font-size: 1.5rem; font-weight: 300; color: var(--pink); }
+#mfa_panel p.explain { font-size: 0.9rem; font-weight: 300; color: #000; text-align: left; padding: 1rem 0; }
+#mfa_panel p.error { font-size: 1rem; font-weight: 300; color: #f00; text-align: center; padding: 2rem 0; }
+p.qr { text-align: center; padding: 2rem; }

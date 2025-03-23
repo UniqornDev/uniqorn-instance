@@ -1,0 +1,20 @@
+
+section.login { 
+	position: fixed; padding: 10vh 10vw; top: 0; bottom: 0; left: 0; right: 0; text-align: center; 
+	overflow: auto; background-color: var(--white);
+	background-image: url(../images/b2.jpg);
+	background-size: cover;
+	background-attachment: fixed;
+}
+
+#login_panel { width: 25rem; max-height: 25rem; min-height: 10rem; background-color: var(--white); 
+	padding: 2.5rem; box-sizing: border-box; 
+	box-shadow: 1rem 1rem 1rem #0008;
+	overflow-y: hidden; overflow-x: auto; text-align: left; 
+	position: absolute; left: 50%; top: 50%; transform: translateX(-50%) translateY(-50%);
+}
+#login_panel button.raised { display: block; width: 100%; margin: 1rem 0; }
+
+#login_panel p { font-size: 1.4rem; font-weight: 300; padding-bottom: 2rem; }
+#login_panel p.error { font-size: 1rem; font-weight: 300; color: #f00; text-align: center; }
+#login_panel .warning { font-size: 1rem; font-weight: 300; color: #777; text-align: left; padding-bottom: 2rem; }

@@ -1,11 +1,15 @@
 package local;
 
+import java.util.Collection;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import aeonics.data.Data;
 import aeonics.entity.*;
+import aeonics.entity.security.Group;
 import aeonics.entity.security.Multifactor;
 import aeonics.entity.security.Provider;
+import aeonics.entity.security.Role;
+import aeonics.entity.security.Token;
 import aeonics.entity.security.User;
 import aeonics.http.Endpoint;
 import aeonics.http.HttpException;
@@ -36,6 +40,9 @@ public class ContributorEndpoints
 		_Endpoint.register();
 		_Version.register();
 		_Env.register();
+		_Role.register();
+		_Group.register();
+		_User.register();
 	}
 	
 	// ========================================
@@ -66,7 +73,7 @@ public class ContributorEndpoints
 				
 				// leave and rejoin
 				provider.leave(user);
-				provider.join(Data.map().put("password", data.asString("password")), user);
+				provider.join(Data.map().put("password", data.asString("password")).put("username", user.login()), user);
 				
 				// invalidate all tokens
 				Manager.of(Security.class).clearTokens(user);
@@ -74,7 +81,7 @@ public class ContributorEndpoints
 				return Data.map().put("success", true);
 			})
 			.url(ROOT + "/self")
-			.method("POST")
+			.method("PATCH")
 			;
 			
 		private static final Endpoint.Rest.Type selfReset = new Endpoint.Rest() { }
@@ -127,7 +134,7 @@ public class ContributorEndpoints
 			{
 				synchronized(Workspace.class)
 				{
-					if( Registry.of(Workspace.class).size() >= Manager.of(Config.class).get("workspaces").asInt() )
+					if( Registry.of(Workspace.class).size() >= Manager.of(Config.class).get(Api.class, "workspaces").asInt() )
 						throw new HttpException(429, "Maximum number of workspaces reached");
 					
 					if( Registry.of(Workspace.class).get(data.asString("name")) != null )
@@ -292,7 +299,7 @@ public class ContributorEndpoints
 			{
 				synchronized(uniqorn.Endpoint.class)
 				{
-					if( Registry.of(uniqorn.Endpoint.class).size() >= Manager.of(Config.class).get("endpoints").asInt() )
+					if( Registry.of(uniqorn.Endpoint.class).size() >= Manager.of(Config.class).get(Api.class, "endpoints").asInt() )
 						throw new HttpException(429, "Maximum number of endpoints reached");
 					
 					uniqorn.Endpoint.Type endpoint = Factory.of(uniqorn.Endpoint.class).get(uniqorn.Endpoint.class).create();
@@ -486,7 +493,7 @@ public class ContributorEndpoints
 				
 				synchronized(e)
 				{
-					if( e.countRelations("versions") >= Manager.of(Config.class).get("versions").asInt() )
+					if( e.countRelations("versions") >= Manager.of(Config.class).get(Api.class, "versions").asInt() )
 						throw new HttpException(429, "Maximum number of versions reached");
 					
 					Version.Type v = e.tag(data.asString("name"));
@@ -708,6 +715,243 @@ public class ContributorEndpoints
 			})
 			.url(ROOT + "/env/{name}")
 			.method("DELETE")
+			;
+	}
+	
+	// ========================================
+	//
+	// ROLE
+	//
+	// ========================================
+	
+	private static class _Role
+	{
+		private static void register() { }
+		
+		private static final Endpoint.Rest.Type roleList = new Endpoint.Rest() { }
+			.template()
+			.summary("List roles")
+			.description("This endpoint lists all security roles")
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Data list = Data.list();
+				for( Role.Type r : Registry.of(Role.class) )
+					if( !r.internal() )
+						list.add(r.export());
+				return list;
+			})
+			.url(ROOT + "/roles")
+			.method("GET")
+			;
+			
+		private static final Endpoint.Rest.Type roleDetails = new Endpoint.Rest() { }
+			.template()
+			.summary("Role details")
+			.description("This endpoint returns the role name and all concerned consumer users")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The role id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Role.Type role = Registry.of(Role.class).get(data.asString("id"));
+				if( role == null || role.internal() ) throw new HttpException(404, "Unknown role");
+				
+				Data list = Data.list();
+				for( User.Type u : Registry.of(User.class) )
+					if( u.hasRole(ManagerEndpoints.ROLE_CONSUMER) && u.hasRole(role) )
+						list.add(Data.map().put("name", u.name()).put("id", u.id()));
+				return Data.map().put("name", role.name()).put("users", list);
+			})
+			.url(ROOT + "/role/{id}")
+			.method("GET")
+			;
+	}
+	
+	// ========================================
+	//
+	// GROUP
+	//
+	// ========================================
+	
+	private static class _Group
+	{
+		private static void register() { }
+		
+		private static final Endpoint.Rest.Type groupList = new Endpoint.Rest() { }
+			.template()
+			.summary("List groups")
+			.description("This endpoint lists all security groups")
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Data list = Data.list();
+				for( Group.Type g : Registry.of(Group.class) )
+					if( !g.internal() )
+						list.add(g.export());
+				return list;
+			})
+			.url(ROOT + "/groups")
+			.method("GET")
+			;
+		
+		private static final Endpoint.Rest.Type groupDetails = new Endpoint.Rest() { }
+			.template()
+			.summary("Group details")
+			.description("This endpoint returns the group name and all concerned consumer users")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The group id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Group.Type group = Registry.of(Group.class).get(data.asString("id"));
+				if( group == null || group.internal() ) throw new HttpException(404, "Unknown group");
+				
+				Data list = Data.list();
+				for( User.Type u : Registry.of(User.class) )
+					if( u.hasRole(ManagerEndpoints.ROLE_CONSUMER) && u.isMemberOf(group) )
+						list.add(Data.map().put("name", u.name()).put("id", u.id()));
+				return Data.map().put("name", group.name()).put("users", list);
+			})
+			.url(ROOT + "/group/{id}")
+			.method("GET")
+			;
+	}
+	
+	// ========================================
+	//
+	// USER
+	//
+	// ========================================
+	
+	private static class _User
+	{
+		private static void register() { }
+		
+		private static final Endpoint.Rest.Type userList = new Endpoint.Rest() { }
+			.template()
+			.summary("List users")
+			.description("This endpoint lists all security users")
+			.add(new Parameter("type")
+				.summary("Type")
+				.description("The user type")
+				.format(Parameter.Format.TEXT)
+				.rule((v) -> v.isEmpty() || v.equals("consumer") || v.equals("manager") || v.equals("contributor") )
+				.values("consumer", "manager", "contributor")
+				.optional(true))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, currentUser) ->
+			{
+				// force consumers for Contributor users. Manager users can choose.
+				if( currentUser.hasRole(ManagerEndpoints.ROLE_CONTRIBUTOR) )
+					data.put("type", "consumer");
+					
+				Data list = Data.list();
+				for( User.Type u : Registry.of(User.class) )
+				{
+					if( u.internal() ) continue;
+					Data current = Data.map()
+						.put("id", u.id())
+						.put("name", u.name())
+						.put("login", u.login())
+						.put("type", 
+							u.hasRole(ManagerEndpoints.ROLE_CONSUMER) ? "consumer" :
+							u.hasRole(ManagerEndpoints.ROLE_CONTRIBUTOR) ? "contributor" : 
+							u.hasRole(ManagerEndpoints.ROLE_MANAGER) ? "manager" : null);
+					
+					if( data.isEmpty("type") )
+					{
+						if( u.hasRole(ManagerEndpoints.ROLE_CONSUMER) || u.hasRole(ManagerEndpoints.ROLE_MANAGER) || u.hasRole(ManagerEndpoints.ROLE_CONTRIBUTOR) )
+							list.add(current);
+					}
+					else if( data.asString("type").equals("consumer") )
+					{
+						if( u.hasRole(ManagerEndpoints.ROLE_CONSUMER) )
+							list.add(current);
+					}
+					else if( data.asString("type").equals("manager") )
+					{
+						if( u.hasRole(ManagerEndpoints.ROLE_MANAGER) )
+							list.add(current);
+					}
+					else if( data.asString("type").equals("contributor") )
+					{
+						if( u.hasRole(ManagerEndpoints.ROLE_CONTRIBUTOR) )
+							list.add(current);
+					}
+				}
+				
+				return list;
+			})
+			.url(ROOT + "/users")
+			.method("GET")
+			;
+		
+		private static final Endpoint.Rest.Type userDetails = new Endpoint.Rest() { }
+			.template()
+			.summary("User details")
+			.description("This endpoint returns the user name, login, type and all groups and roles")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The user id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, currentUser) ->
+			{
+				synchronized(_User.class)
+				{
+					User.Type user = Registry.of(User.class).get(data.asString("id"));
+					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
+					
+					// Contributor users can only see Consumers
+					if( currentUser.hasRole(ManagerEndpoints.ROLE_CONTRIBUTOR) && !user.hasRole(ManagerEndpoints.ROLE_CONSUMER) )
+						throw new HttpException(404, "Unknown user");
+					
+					Data roles = Data.list();
+					for( Tuple<Entity, Data> r : user.relations("roles") )
+					{
+						if( r.a != null && !r.a.internal() )
+							roles.add(Data.map().put("name", r.a.name()).put("id", r.a.id()));
+					}
+					
+					Data groups = Data.list();
+					for( Tuple<Entity, Data> g : user.relations("groups") )
+					{
+						if( g.a != null && !g.a.internal()  )
+							groups.add(Data.map().put("name", g.a.name()).put("id", g.a.id()));
+					}
+					
+					return Data.map()
+						.put("id", user.id())
+						.put("name", user.name())
+						.put("login", user.login())
+						.put("type", 
+							user.hasRole(ManagerEndpoints.ROLE_CONSUMER) ? "consumer" :
+							user.hasRole(ManagerEndpoints.ROLE_CONTRIBUTOR) ? "contributor" : 
+							user.hasRole(ManagerEndpoints.ROLE_MANAGER) ? "manager" : null)
+						.put("roles", roles)
+						.put("groups", groups)
+						;
+				}
+			})
+			.url(ROOT + "/user/{id}")
+			.method("GET")
 			;
 	}
 }

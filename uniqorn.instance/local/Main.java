@@ -14,6 +14,7 @@ import aeonics.manager.*;
 import aeonics.manager.Lifecycle.Phase;
 import aeonics.template.Factory;
 import aeonics.template.Parameter;
+import aeonics.util.Snapshotable.SnapshotMode;
 import uniqorn.Api;
 import uniqorn.Endpoint;
 import uniqorn.Version;
@@ -27,6 +28,7 @@ public class Main extends Plugin
 	public void start()
 	{
 		Lifecycle.on(Phase.LOAD, this::onLoad);
+		Lifecycle.on(Phase.CONFIG, this::onConfig);
 		Lifecycle.on(Phase.RUN, this::onRun);
 	}
 	
@@ -35,6 +37,7 @@ public class Main extends Plugin
 		Factory.add(new Workspace());
 		Factory.add(new Version());
 		Factory.add(new Endpoint());
+		Factory.add(new Router());
 	
 		Config config = Manager.of(Config.class);
 		
@@ -53,9 +56,14 @@ public class Main extends Plugin
 			.description("The maximum number of versions allowed for each API.")
 			.format(Parameter.Format.NUMBER)
 			.defaultValue(0));
-		config.declare(Api.class, new Parameter("keys")
-			.summary("Maximum number of api keys")
-			.description("The maximum number of API keys allowed in this instance.")
+		config.declare(Api.class, new Parameter("consumers")
+			.summary("Maximum number of consumers")
+			.description("The maximum number of consumer users.")
+			.format(Parameter.Format.NUMBER)
+			.defaultValue(0));
+		config.declare(Api.class, new Parameter("users")
+			.summary("Maximum number of panel users")
+			.description("The maximum number of controbutor and manager users.")
 			.format(Parameter.Format.NUMBER)
 			.defaultValue(0));
 		config.declare(Api.class, new Parameter("rate")
@@ -88,14 +96,24 @@ public class Main extends Plugin
 			.defaultValue(false));
 	}
 	
+	private void onConfig()
+	{
+		new Router().template().create().<Router.Type>cast().prefix(Manager.of(Config.class).get(Api.class, "prefix").asString());
+		Manager.of(Config.class).watch(Api.class, "rate", (name, data) -> { Router.limit = data.asLong(); });
+		
+		Factory.of(Role.class).get(Role.class).create(Data.map().put("id", ManagerEndpoints.ROLE_MANAGER))
+			.name("Uniqorn Manager").internal(true).snapshotMode(SnapshotMode.NONE);
+		Factory.of(Role.class).get(Role.class).create(Data.map().put("id", ManagerEndpoints.ROLE_CONTRIBUTOR))
+			.name("Uniqorn Contributor").internal(true).snapshotMode(SnapshotMode.NONE);
+		Factory.of(Role.class).get(Role.class).create(Data.map().put("id", ManagerEndpoints.ROLE_CONSUMER))
+			.name("Uniqorn Consumer").internal(true).snapshotMode(SnapshotMode.NONE);
+	}
+	
 	private void onRun()
 	{
 		ContributorEndpoints.register();
 		ManagerEndpoints.register();
 		
-		Manager.of(Config.class).watch(Api.class, "rate", (name, data) -> { Router.limit = data.asLong(); });
-
-		new Router().template().create().<Router.Type>cast().prefix(Manager.of(Config.class).get(Api.class, "prefix").asString());
 		
 		// reset call counters
 		Manager.of(Scheduler.class).every((now) -> 
@@ -113,17 +131,8 @@ public class Main extends Plugin
 		Config c = Manager.of(Config.class);
 		if( !c.get(Api.class, "initialized").asBool() )
 		{
-			Role.Type manager = Factory.of(Role.class).get(Role.class).create();
-			manager.name(ManagerEndpoints.ROLE_MANAGER);
-			manager.internal(true);
-			
-			Role.Type contributor = Factory.of(Role.class).get(Role.class).create();
-			contributor.name(ManagerEndpoints.ROLE_CONTRIBUTOR);
-			contributor.internal(true);
-			
-			Role.Type api = Factory.of(Role.class).get(Role.class).create();
-			api.name(ManagerEndpoints.ROLE_CONSUMER);
-			api.internal(true);
+			Role.Type manager = Registry.of(Role.class).get(ManagerEndpoints.ROLE_MANAGER);
+			Role.Type contributor = Registry.of(Role.class).get(ManagerEndpoints.ROLE_CONTRIBUTOR);
 			
 			// restrict access to contributor api
 			Policy.Type policy = new Policy.Deny().template().create(Data.map().put("parameters", Data.map().put("scope", "http")));

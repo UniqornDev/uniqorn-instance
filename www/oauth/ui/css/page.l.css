@@ -1,0 +1,39 @@
+
+section.login { 
+	position: fixed; padding: 10vh 10vw; top: 0; bottom: 0; left: 0; right: 0; text-align: center; 
+	overflow: auto;
+}
+
+#login_panel { width: 25rem; max-height: 25rem; min-height: 10rem; background-color: var(--white); 
+	padding: 2.5rem; box-sizing: border-box; 
+	box-shadow: 1rem 1rem 1rem #0008;
+	overflow-y: hidden; overflow-x: auto; text-align: left; 
+	position: absolute; left: 50%; top: 50%; transform: translateX(-50%) translateY(-50%);
+}
+section.login::after { content: attr(data-ttl); position: absolute; bottom: 10vh; right: 10vw; font-size: 0.8rem; color: var(--white); }
+
+#login_panel button.raised { display: block; width: 100%; margin: 1rem 0; }
+#login_panel ul { margin: 0; padding: 0; list-style: none; width: 100%; overflow: hidden; }
+#login_panel li { display: block; white-space: nowrap; cursor: pointer; border-radius: 4rem; width: 100%; 
+	overflow: hidden; text-overflow: ellipsis; padding-right: 1.5rem;
+	position: relative; z-index: 1; }
+#login_panel li:not(:last-of-type) { margin-bottom: 1.5rem; }
+#login_panel p { font-size: 1.5rem; font-weight: 300; color: var(--pink); }
+#login_panel p.error { font-size: 1rem; font-weight: 300; color: #f00; text-align: center; padding: 2rem 0; }
+#login_panel p.back { font-size: 0.8rem; font-weight: 300; display: inline-block; margin-bottom: 2rem; color: var(--blue); }
+#login_panel p.onbehalf { font-size: 0.7rem; font-weight: 300; color: #888; text-align: left; width: 100%; overflow: hidden; text-overflow: ellipsis; padding-bottom: 2rem; }
+#login_panel li::before { 
+	display: inline-block; content: ''; vertical-align: middle; margin-right: 1rem;
+	background-color: #ddd; width: 3rem; height: 3rem; border-radius: 3rem;
+	background-repeat: no-repeat; background-position: center center; background-size: 2rem auto;
+}
+#login_panel li::after { 
+	display: inline-block; content: ''; position: absolute; left: 0; width: 3rem; z-index: -1;
+	background-color: #ddd; height: 3rem; border-radius: 3rem; transition: all ease 0.2s;
+}
+#login_panel li:hover::after { width: 100%; }
+
+#login_panel li.account::before { background-image: url('../images/account.svg'); }
+#login_panel li.other::before { background-image: url('../images/other.svg'); }
+#login_panel li.provider::before { background-image: url('../images/provider.svg'); }
+#login_panel li.provider.password::before { background-image: url('../images/password.svg'); }

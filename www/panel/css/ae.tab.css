@@ -1,0 +1,146 @@
+/* ==========================================
+ * TABBED BOX
+ * ======================================= */
+
+/*
+.tab is defined as :
+
+<div class="tab" data-tab="1">
+	<div>
+		<span click="this.parentNode.parentNode.dataset.tab=this.index()+1;">header1</span>
+		<span click="this.parentNode.parentNode.dataset.tab=this.index()+1;">header2</span>
+	</div>
+	<div>
+		<whatever>content1</whatever>
+		<whatever>content2</whatever>
+	</div>
+</div>
+
+CAUTION : css nth-child is 1-based while child index() is 0-based this is why we do +1
+CAUTION : IE will not reflow the CSS until you force it to. 
+	To do this set the tab's className to itself : ae.first('.tab').className = ae.first('.tab').className;
+*/
+
+.tab > div { margin: 0; }
+.tab > div:first-of-type { 
+	overflow: hidden; text-align: left; white-space: nowrap; position: relative;
+	flex-direction: row; display: flex; flex-wrap: nowrap; justify-content: flex-start; align-items: stretch; 
+}
+.tab > div:first-of-type:after { 
+	display: inline-block; border-bottom: 1px solid #666; content: ""; 
+	vertical-align: bottom; flex-grow: 1; min-width: 0;
+}
+.tab > div:first-of-type > span
+{
+	font-size: 16px;
+	padding: 15px 30px;
+	padding-bottom: 16px;
+	color: #4b4b4b;
+	border-bottom: 1px solid #666;
+	text-transform: uppercase;
+	display: inline-block;
+	cursor: pointer;
+	flex-grow: 0;
+	white-space: nowrap; 
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 35px;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	font-weight: 300;
+}
+.tab > div:first-of-type > span:hover { color: var(--orange); } 
+.tab > div:last-of-type 
+{
+	padding: 20px; position: relative; background-color: #ffffff10;
+}
+.tab[data-tab="1"] > div:first-of-type > :nth-child(1),
+.tab[data-tab="2"] > div:first-of-type > :nth-child(2),
+.tab[data-tab="3"] > div:first-of-type > :nth-child(3),
+.tab[data-tab="4"] > div:first-of-type > :nth-child(4),
+.tab[data-tab="5"] > div:first-of-type > :nth-child(5),
+.tab[data-tab="6"] > div:first-of-type > :nth-child(6),
+.tab[data-tab="7"] > div:first-of-type > :nth-child(7),
+.tab[data-tab="8"] > div:first-of-type > :nth-child(8),
+.tab[data-tab="9"] > div:first-of-type > :nth-child(9),
+.tab[data-tab="10"] > div:first-of-type > :nth-child(10) { 
+	border-bottom: 2px solid var(--orange); 
+	padding-bottom: 15px;
+	color: #fff; font-weight: 400;
+}
+.tab[data-tab="1"] > div:last-of-type > :not(:nth-child(1)),
+.tab[data-tab="2"] > div:last-of-type > :not(:nth-child(2)),
+.tab[data-tab="3"] > div:last-of-type > :not(:nth-child(3)),
+.tab[data-tab="4"] > div:last-of-type > :not(:nth-child(4)),
+.tab[data-tab="5"] > div:last-of-type > :not(:nth-child(5)),
+.tab[data-tab="6"] > div:last-of-type > :not(:nth-child(6)),
+.tab[data-tab="7"] > div:last-of-type > :not(:nth-child(7)),
+.tab[data-tab="8"] > div:last-of-type > :not(:nth-child(8)),
+.tab[data-tab="9"] > div:last-of-type > :not(:nth-child(9)),
+.tab[data-tab="10"] > div:last-of-type > :not(:nth-child(10)) { display: none; }
+
+/* ============== VERTICAL TABS ============== */
+
+.vtab { display: flex; align-items: stretch; }
+.vtab > div { margin: 0; }
+.vtab > div:first-of-type { 
+	flex-grow: 0; overflow: hidden; text-align: left; white-space: nowrap; position: relative;
+	flex-direction: column; display: flex; flex-wrap: nowrap; justify-content: flex-start; align-items: stretch; 
+}
+.vtab > div:first-of-type:after { 
+	display: inline-block; border-right: 1px solid #666; content: ""; 
+	vertical-align: bottom; flex-grow: 1; min-width: 0;
+}
+.vtab > div:first-of-type > span
+{
+	font-size: 16px;
+	padding: 15px 15px;
+	padding-right: 16px;
+	color: #4b4b4b;
+	border-right: 1px solid #666;
+	text-transform: uppercase;
+	display: inline-block;
+	cursor: pointer;
+	flex-grow: 0;
+	white-space: nowrap; 
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 35px;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+	font-weight: 300;
+}
+.vtab > div:first-of-type > span:hover { color: #FB8136; } 
+.vtab > div:last-of-type 
+{
+	flex-grow: 1;
+	padding: 20px; position: relative;
+}
+.vtab[data-tab="1"] > div:first-of-type > :nth-child(1),
+.vtab[data-tab="2"] > div:first-of-type > :nth-child(2),
+.vtab[data-tab="3"] > div:first-of-type > :nth-child(3),
+.vtab[data-tab="4"] > div:first-of-type > :nth-child(4),
+.vtab[data-tab="5"] > div:first-of-type > :nth-child(5),
+.vtab[data-tab="6"] > div:first-of-type > :nth-child(6),
+.vtab[data-tab="7"] > div:first-of-type > :nth-child(7),
+.vtab[data-tab="8"] > div:first-of-type > :nth-child(8),
+.vtab[data-tab="9"] > div:first-of-type > :nth-child(9),
+.vtab[data-tab="10"] > div:first-of-type > :nth-child(10) { 
+	border-right: 2px solid #FB8136;
+	padding-right: 15px;
+	color: #FB8136; font-weight: 400;
+}
+.vtab[data-tab="1"] > div:last-of-type > :not(:nth-child(1)),
+.vtab[data-tab="2"] > div:last-of-type > :not(:nth-child(2)),
+.vtab[data-tab="3"] > div:last-of-type > :not(:nth-child(3)),
+.vtab[data-tab="4"] > div:last-of-type > :not(:nth-child(4)),
+.vtab[data-tab="5"] > div:last-of-type > :not(:nth-child(5)),
+.vtab[data-tab="6"] > div:last-of-type > :not(:nth-child(6)),
+.vtab[data-tab="7"] > div:last-of-type > :not(:nth-child(7)),
+.vtab[data-tab="8"] > div:last-of-type > :not(:nth-child(8)),
+.vtab[data-tab="9"] > div:last-of-type > :not(:nth-child(9)),
+.vtab[data-tab="10"] > div:last-of-type > :not(:nth-child(10)) { display: none; }

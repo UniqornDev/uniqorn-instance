@@ -21,6 +21,12 @@ public class Router extends Endpoint
 		public void prefix(String value) { prefix = value; }
 		
 		@Override
+		public boolean internal() { return true; }
+		
+		@Override
+		public SnapshotMode snapshotMode() { return SnapshotMode.NONE; }
+		
+		@Override
 		public boolean matchesMethod(String method) { return true; }
 		
 		@Override

@@ -1,0 +1,16 @@
+
+section.error { 
+	position: fixed; padding: 10vh 10vw; top: 0; bottom: 0; left: 0; right: 0; text-align: center; 
+	overflow: auto;
+}
+
+#error_panel { width: 25rem; max-height: 25rem; min-height: 10rem; background-color: var(--white); 
+	padding: 2.5rem; box-sizing: border-box; 
+	box-shadow: 1rem 1rem 1rem #0008;
+	overflow-y: hidden; overflow-x: auto; text-align: left; 
+	position: absolute; left: 50%; top: 50%; transform: translateX(-50%) translateY(-50%);
+}
+#error_panel p { text-align: left; margin: 0; line-height: unset; }
+#error_panel p.t1 { font-size: 1.5rem; font-weight: 300; padding-bottom: 2rem; color: #f00; }
+#error_panel p.t2 { color: #000; }
+#error_panel p.t3 { color: #888; font-size: 0.8rem; font-family: monospace; margin-top: 1rem; }

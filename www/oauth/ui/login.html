@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Login</title>
+		<meta charset="utf-8">
+		<meta content="width=device-width, initial-scale=1.0" name="viewport">
+		<meta http-equiv="cache-control" content="no-cache" />
+		<meta http-equiv="pragma" content="no-cache" />
+		<meta http-equiv="expires" content="0" />
+
+		<script type="module">
+			location.href = "#l";
+			import('./js/ae.js').then(({default: ae}) =>
+			{
+				// preload css
+				ae.require('ae.app.css').catch(() => {});
+				ae.ready.then(() =>
+				{
+					// preload classes
+					ae.require('Translator', 'Node', 'Page', 'App').then(([Translator]) =>
+					{
+						// preload locales
+						Translator.load('default');
+					}); 
+				});
+			});
+		</script>
+	</head>
+	<body>
+	</body>
+</html>

@@ -4,6 +4,7 @@ import java.util.Collection;
 
 import aeonics.Boot;
 import aeonics.data.Data;
+import aeonics.entity.Entity;
 import aeonics.entity.Registry;
 import aeonics.http.Endpoint;
 import aeonics.http.HttpException;
@@ -17,15 +18,16 @@ import aeonics.entity.security.*;
 import aeonics.template.Factory;
 import aeonics.template.Parameter;
 import aeonics.util.StringUtils;
+import aeonics.util.Tuples.Tuple;
 import uniqorn.Api;
 
 @SuppressWarnings("unused")
 public class ManagerEndpoints 
 {
 	static final String ROOT = "/api/manager";
-	static final String ROLE_MANAGER = "Uniqorn Manager";
-	static final String ROLE_CONTRIBUTOR = "Uniqorn Contributor";
-	static final String ROLE_CONSUMER = "Uniqorn API Consumer";
+	static final String ROLE_MANAGER = "22200000-2100000000000000";
+	static final String ROLE_CONTRIBUTOR = "22200000-2200000000000000";
+	static final String ROLE_CONSUMER = "22200000-2300000000000000";
 	
 	private ManagerEndpoints() { /* no instances */ }
 	
@@ -128,7 +130,7 @@ public class ManagerEndpoints
 				synchronized(_Role.class)
 				{
 					Role.Type role = Registry.of(Role.class).get(data.asString("id"));
-					if( role == null ) throw new HttpException(404, "Unknown role");
+					if( role == null || role.internal() ) throw new HttpException(404, "Unknown role");
 					
 					if( !data.isNull("name") )
 					{
@@ -160,30 +162,15 @@ public class ManagerEndpoints
 			{
 				synchronized(_Role.class)
 				{
+					Role.Type role = Registry.of(Role.class).get(data.asString("id"));
+					if( role == null || role.internal() ) throw new HttpException(404, "Unknown role");
+					
 					Registry.of(Role.class).remove(data.asString("id"));
 					return Data.map().put("success", true);
 				}
 			})
 			.url(ROOT + "/role/{id}")
 			.method("DELETE")
-			;
-			
-		private static final Endpoint.Rest.Type roleList = new Endpoint.Rest() { }
-			.template()
-			.summary("List roles")
-			.description("This endpoint lists all security roles")
-			.create()
-			.<Rest.Type>cast()
-			.process(data ->
-			{
-				Data list = Data.list();
-				for( Role.Type r : Registry.of(Role.class) )
-					if( !r.internal() )
-						list.add(r.export());
-				return list;
-			})
-			.url(ROOT + "/roles")
-			.method("GET")
 			;
 	}
 	
@@ -252,7 +239,7 @@ public class ManagerEndpoints
 				synchronized(_Group.class)
 				{
 					Group.Type group = Registry.of(Group.class).get(data.asString("id"));
-					if( group == null ) throw new HttpException(404, "Unknown group");
+					if( group == null || group.internal() ) throw new HttpException(404, "Unknown group");
 					
 					if( !data.isNull("name") )
 					{
@@ -284,30 +271,15 @@ public class ManagerEndpoints
 			{
 				synchronized(_Group.class)
 				{
+					Group.Type group = Registry.of(Group.class).get(data.asString("id"));
+					if( group == null || group.internal() ) throw new HttpException(404, "Unknown group");
+					
 					Registry.of(Group.class).remove(data.asString("id"));
 					return Data.map().put("success", true);
 				}
 			})
 			.url(ROOT + "/group/{id}")
 			.method("DELETE")
-			;
-			
-		private static final Endpoint.Rest.Type groupList = new Endpoint.Rest() { }
-			.template()
-			.summary("List groups")
-			.description("This endpoint lists all security groups")
-			.create()
-			.<Rest.Type>cast()
-			.process(data ->
-			{
-				Data list = Data.list();
-				for( Group.Type g : Registry.of(Group.class) )
-					if( !g.internal() )
-						list.add(g.export());
-				return list;
-			})
-			.url(ROOT + "/groups")
-			.method("GET")
 			;
 	}
 	
@@ -332,18 +304,12 @@ public class ManagerEndpoints
 				.optional(false)
 				.min(3)
 				.max(50))
-			.add(new Parameter("firstname")
-				.summary("Firstname")
-				.description("The user firstname")
+			.add(new Parameter("name")
+				.summary("Display name")
+				.description("The user display name")
 				.format(Parameter.Format.TEXT)
 				.optional(true)
-				.max(50))
-			.add(new Parameter("lastname")
-				.summary("Lastname")
-				.description("The user lastname")
-				.format(Parameter.Format.TEXT)
-				.optional(true)
-				.max(50))
+				.max(100))
 			.add(new Parameter("type")
 				.summary("Type")
 				.description("The user type")
@@ -359,12 +325,15 @@ public class ManagerEndpoints
 				{
 					if( data.asString("type").equals("consumer") )
 					{
-						if( Registry.of(User.class).filter(u -> u.hasRole(ROLE_CONSUMER)).size() >= Manager.of(Config.class).get("keys").asInt() )
-							throw new HttpException(429, "Maximum number of api users reached");
+						if( Registry.of(User.class).filter(u -> u.hasRole(ROLE_CONSUMER)).size() >= Manager.of(Config.class).get(Api.class, "consumers").asInt() )
+							throw new HttpException(429, "Maximum number of consumer users reached");
+						
+						// consumer have random login
+						data.put("login", Manager.of(Security.class).randomHash());
 					}
 					else
 					{
-						if( Registry.of(User.class).filter(u -> u.hasRole(ROLE_MANAGER) || u.hasRole(ROLE_CONTRIBUTOR)).size() >= Manager.of(Config.class).get("users").asInt() )
+						if( Registry.of(User.class).filter(u -> u.hasRole(ROLE_MANAGER) || u.hasRole(ROLE_CONTRIBUTOR)).size() >= Manager.of(Config.class).get(Api.class, "users").asInt() )
 							throw new HttpException(429, "Maximum number of users reached");
 					}
 					
@@ -372,21 +341,15 @@ public class ManagerEndpoints
 						throw new HttpException(400, "Duplicate user");
 					
 					User.Type user = Factory.of(User.class).get(User.class).create()
-						.name(data.asString("login"));
-					user.parameter("attributes", Data.map()
-						.put("firstname", data.asString("firstname"))
-						.put("lastname", data.asString("lastname")));
-					
-					// consumers cannot login, so leave their login empty
-					if( !data.asString("type").equals("consumer") )
-						user.parameter("login", data.asString("login"));
+						.name(data.asString("name"))
+						.parameter("login", data.asString("login"));
 					
 					if( data.asString("type").equals("consumer") )
 						user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONSUMER));
 					else if( data.asString("type").equals("contributor") )
-						user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONTRIBUTOR));
+						user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONTRIBUTOR)).addRelation("groups", Group.USERS);
 					else if( data.asString("type").equals("manager") )
-						user.addRelation("roles", Registry.of(Role.class).get(ROLE_MANAGER));
+						user.addRelation("roles", Registry.of(Role.class).get(ROLE_MANAGER)).addRelation("groups", Group.USERS);;
 					
 					return Data.map().put("id", user.id());
 				}
@@ -412,18 +375,19 @@ public class ManagerEndpoints
 				.optional(true)
 				.min(3)
 				.max(50))
-			.add(new Parameter("firstname")
-				.summary("Firstname")
-				.description("The user firstname")
+			.add(new Parameter("name")
+				.summary("Display name")
+				.description("The user display name")
 				.format(Parameter.Format.TEXT)
 				.optional(true)
-				.max(50))
-			.add(new Parameter("lastname")
-				.summary("Lastname")
-				.description("The user lastname")
+				.max(100))
+			.add(new Parameter("type")
+				.summary("Type")
+				.description("The user type")
 				.format(Parameter.Format.TEXT)
-				.optional(true)
-				.max(50))
+				.rule((v) -> v.isEmpty() || v.equals("manager") || v.equals("contributor") )
+				.values("manager", "contributor")
+				.optional(true))
 			.create()
 			.<Rest.Type>cast()
 			.process(data ->
@@ -433,20 +397,33 @@ public class ManagerEndpoints
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
 					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
 					
-					if( !data.isNull("login") )
+					if( !data.isEmpty("login") && (user.hasRole(ROLE_MANAGER) || user.hasRole(ROLE_CONTRIBUTOR)) )
 					{
 						if( Registry.of(User.class).get(data.asString("login")) != null &&  Registry.of(User.class).get(data.asString("login")) != user )
 							throw new HttpException(400, "Duplicate user login");
 						
-						user.name(data.asString("login"));
-						if( user.hasRole(ROLE_MANAGER) || user.hasRole(ROLE_CONTRIBUTOR) )
-							user.parameter("login", data.asString("login"));
+						user.parameter("login", data.asString("login"));
 					}
 					
-					if( !data.isNull("firstname") )
-						user.attributes().put("firstname", data.asString("firstname"));
-					if( !data.isNull("lastname") )
-						user.attributes().put("lastname", data.asString("lastname"));
+					if( !data.isEmpty("type") && (user.hasRole(ROLE_MANAGER) || user.hasRole(ROLE_CONTRIBUTOR)) )
+					{
+						// check for last manager
+						if( user.hasRole(ROLE_MANAGER) &&
+							!data.asString("type").equals("manager") && 
+							Registry.of(User.class).filter(u -> u.hasRole(ROLE_MANAGER)).size() == 1 )
+							throw new HttpException(400, "Cannot change level of last manager");
+						
+						user.removeRelation("roles", ROLE_MANAGER);
+						user.removeRelation("roles", ROLE_CONTRIBUTOR);
+						
+						if( data.asString("type").equals("contributor") )
+							user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONTRIBUTOR));
+						else if( data.asString("type").equals("manager") )
+							user.addRelation("roles", Registry.of(Role.class).get(ROLE_MANAGER));
+					}
+					
+					if( !data.isNull("name") )
+						user.name(data.asString("name"));
 					
 					return Data.map().put("success", true);
 				}
@@ -485,53 +462,10 @@ public class ManagerEndpoints
 			.method("DELETE")
 			;
 			
-		private static final Endpoint.Rest.Type userList = new Endpoint.Rest() { }
-			.template()
-			.summary("List users")
-			.description("This endpoint lists all security users")
-			.add(new Parameter("type")
-				.summary("Type")
-				.description("The user type")
-				.format(Parameter.Format.TEXT)
-				.rule((v) -> v.isEmpty() || v.equals("consumer") || v.equals("manager") || v.equals("contributor") )
-				.values("consumer", "manager", "contributor")
-				.optional(true))
-			.create()
-			.<Rest.Type>cast()
-			.process(data ->
-			{
-				Data list = Data.list();
-				for( User.Type u : Registry.of(User.class) )
-				{
-					if( u.internal() ) continue;
-					if( data.isEmpty("type") ) list.add(u.export());
-					else if( data.asString("type").equals("consumer") )
-					{
-						if( u.hasRole(ROLE_CONSUMER) )
-							list.add(u.export());
-					}
-					else if( data.asString("type").equals("manager") )
-					{
-						if( u.hasRole(ROLE_MANAGER) )
-							list.add(u.export());
-					}
-					else if( data.asString("type").equals("contributor") )
-					{
-						if( u.hasRole(ROLE_CONTRIBUTOR) )
-							list.add(u.export());
-					}
-				}
-				
-				return list;
-			})
-			.url(ROOT + "/users")
-			.method("GET")
-			;
-			
 		private static final Endpoint.Rest.Type userGroups = new Endpoint.Rest() { }
 			.template()
 			.summary("Set user groups")
-			.description("This endpoint sets the security groups associated with a user")
+			.description("This endpoint sets the security groups associated with a consumer user")
 			.add(new Parameter("id")
 				.summary("Id")
 				.description("The user id")
@@ -551,7 +485,7 @@ public class ManagerEndpoints
 				synchronized(_User.class)
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
-					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
+					if( user == null || user.internal() || !user.hasRole(ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
 					
 					user.clearRelation("groups");
 					for( Data name : data.get("groups") )
@@ -571,7 +505,7 @@ public class ManagerEndpoints
 		private static final Endpoint.Rest.Type userRoles = new Endpoint.Rest() { }
 			.template()
 			.summary("Set user roles")
-			.description("This endpoint sets the security roles associated with a user")
+			.description("This endpoint sets the security roles associated with a consumer user")
 			.add(new Parameter("id")
 				.summary("Id")
 				.description("The user id")
@@ -591,9 +525,13 @@ public class ManagerEndpoints
 				synchronized(_User.class)
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
-					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
+					if( user == null || user.internal() || !user.hasRole(ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
 					
 					user.clearRelation("roles");
+					
+					// CAUTION : we need to re-set the ROLE_CONSUMER !
+					user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONSUMER));
+					
 					for( Data name : data.get("roles") )
 					{
 						Role.Type r = Registry.of(Role.class).get(name.asString());
@@ -664,7 +602,7 @@ public class ManagerEndpoints
 					// leave and rejoin
 					provider.leave(user);
 					String password = Manager.of(Security.class).randomHash();
-					provider.join(Data.map().put("password", password), user);
+					provider.join(Data.map().put("password", password).put("username", user.login()), user);
 					
 					// invalidate all tokens
 					Manager.of(Security.class).clearTokens(user);
@@ -676,7 +614,7 @@ public class ManagerEndpoints
 					return Data.map().put("password", password);
 				}
 			})
-			.url(ROOT + "/user/{id}/key")
+			.url(ROOT + "/user/{id}/password")
 			.method("PATCH")
 			;
 			
