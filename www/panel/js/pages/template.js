@@ -2,7 +2,7 @@
 let ae = globalThis.ae;
 var x = new Promise((ok, nok) =>
 {
-	ae.require('App', 'Page', 'Node', 'Translator', 'ae.layout.css', 'ae.tab.css').then(([App, Page, Node, Translator]) =>
+	ae.require('App', 'Page', 'Node', 'Translator', 'ae.layout.css', 'ae.tab.css', 'ext/prism.js', 'ext/prism.css', 'ext/code-input.min.js', 'ext/code-input.min.css').then(([App, Page, Node, Translator]) =>
 	{
 		ok(Object.assign(new Page(), 
 		{
@@ -14,7 +14,7 @@ var x = new Promise((ok, nok) =>
 				document.body.append(
 					Node.nav({click: function(e) {
 						var li = e.target.closest('nav li');
-						if( !li ) return;
+						if( !li || !li.dataset.link ) return;
 						
 						this.querySelectorAll('li').forEach(e => e.classList.remove('selected'));
 						li.classList.add('selected');
@@ -27,40 +27,44 @@ var x = new Promise((ok, nok) =>
 						]),
 						Node.ol([
 							Node.li({className: location.hash == '#home' || location.hash == '' || location.hash == '#' ? 'selected' : '', dataset: {link: 'home'}}, [
-								Node.span({className: 'icon'}, 'public'), 
+								Node.span({className: 'icon'}, 'leaderboard'), 
+								Translator.get('menu.home')
+							]),
+							Node.li({className: location.hash == '#endpoints' ? 'selected' : '', dataset: {link: 'endpoints'}}, [
+								Node.span({className: 'icon'}, 'webhook'), 
 								Translator.get('menu.endpoints')
 							]),
 							Node.li({className: location.hash == '#security' ? 'selected' : '', dataset: {link: 'security'}}, [
 								Node.span({className: 'icon'}, 'security'), 
 								Translator.get('menu.security')
 							]),
-							Node.li({className: location.hash == '#config' ? 'selected' : '', dataset: {link: 'config'}}, [
+							Node.li({className: location.hash == '#env' ? 'selected' : '', dataset: {link: 'env'}}, [
 								Node.span({className: 'icon'}, 'tune'), 
-								Translator.get('menu.config')
-							]),
-							Node.li({className: location.hash == '#workflow' ? 'selected' : '', dataset: {link: 'workflow'}}, [
-								Node.span({className: 'icon'}, 'share'), 
-								Translator.get('menu.workflow')
-							]),
-							Node.li({className: location.hash == '#endpoints' ? 'selected' : '', dataset: {link: 'endpoints'}}, [
-								Node.span({className: 'icon'}, 'public'), 
-								Translator.get('menu.endpoints')
+								Translator.get('menu.env')
 							]),
 							Node.li({className: location.hash == '#storage' ? 'selected' : '', dataset: {link: 'storage'}}, [
 								Node.span({className: 'icon'}, 'storage'), 
 								Translator.get('menu.storage')
 							]),
-							Node.li({className: location.hash == '#debug' ? 'selected' : '', dataset: {link: 'debug'}}, [
+							Node.li({className: location.hash == '#troubleshoot' ? 'selected' : '', dataset: {link: 'troubleshoot'}}, [
 								Node.span({className: 'icon'}, 'bug_report'), 
-								Translator.get('menu.debug')
+								Translator.get('menu.troubleshoot')
 							]),
-							Node.li({className: location.hash == '#logs' ? 'selected' : '', dataset: {link: 'logs'}}, [
-								Node.span({className: 'icon'}, 'description'), 
-								Translator.get('menu.logs')
+							Node.li({className: 'external', click: function(e)
+							{
+								e.stopImmediatePropagation();
+								window.open('https://uniqorn.dev/doc', '_blank').focus();
+							}}, [
+								Node.span({className: 'icon'}, 'open_in_new'), 
+								Translator.get('menu.doc')
 							]),
-							Node.li({className: location.hash == '#metrics' ? 'selected' : '', dataset: {link: 'metrics'}}, [
-								Node.span({className: 'icon'}, 'troubleshoot'), 
-								Translator.get('menu.metrics')
+							Node.li({className: 'external', click: function(e)
+							{
+								e.stopImmediatePropagation();
+								window.open('https://uniqorn.dev/doc', '_blank').focus();
+							}}, [
+								Node.span({className: 'icon'}, 'open_in_new'), 
+								Translator.get('menu.javadoc')
 							])
 						])
 					]),
@@ -68,6 +72,8 @@ var x = new Promise((ok, nok) =>
 				);
 				
 				App.container = container;
+				codeInput.registerTemplate("syntax-highlighted", codeInput.templates.prism(Prism));
+				
 				return Promise.resolve(null);
 			}
 		}));

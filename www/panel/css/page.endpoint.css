@@ -1,0 +1,13 @@
+
+.page.endpoint { }
+
+.page.endpoint > .back { color: var(--blue); font-weight: 400; cursor: pointer; padding: 0.5rem 1rem; display: inline-block; border-radius: 0.3rem; }
+.page.endpoint > .back:hover { background-color: #747caa40; }
+.page.endpoint > .back .icon { font-size: 1.2rem; vertical-align: sub; }
+
+.page.endpoint .versions { }
+.page.endpoint .versions li { background-color: #aaa1; padding: 1rem; margin-bottom: 1rem; }
+.page.endpoint .versions h3 { color: var(--yellow); padding-top: 0; padding-bottom: 0.3rem; font-weight: 400; }
+.page.endpoint .versions li.head h3 { color: var(--green); }
+.page.endpoint .versions .icon { font-size: 1.2rem; vertical-align: sub; }
+.page.endpoint .versions p { font-size: 0.8rem; color: #0008; padding-left: 2rem; }

@@ -30,6 +30,9 @@ input, button, textarea { outline: none !important; }
 .orange { color: var(--orange) !important; }
 .pink { color: var(--pink) !important; }
 .hidden { display: none !important; }
+.left { text-align: left; }
+.center { text-align: center; }
+.right { text-align: right; }
 
 input { 
 	display: block; width: 100%; border: 0; 

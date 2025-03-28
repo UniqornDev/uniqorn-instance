@@ -8,7 +8,7 @@ main#main_container {
 	position: fixed; z-index: 1;
 	top: 0; left: 0; bottom: 0; right: 0;
 	padding: 0rem 0rem 0rem 15rem;
-	background-color: #fffb; overflow: auto;
+	background-color: #fffd; overflow-y: auto; overflow-x: hidden;
 }
 #main_container > .page { padding: 2rem;  min-height: 100vh; }
 
@@ -36,6 +36,7 @@ nav li {
 	white-space: nowrap; text-overflow: ellipsis;
 }
 nav li.selected { color: var(--white); background-color: var(--blue) !important; }
+nav li.external { color: var(--pink); }
 nav li:hover { background-color: #0002; }
 nav li .icon { display: inline-block; margin-right: 1rem; font-size: 1.2rem; line-height: 1rem; vertical-align: bottom; }
 
@@ -52,17 +53,19 @@ nav aside {
 .action { text-align: right; }
 .action button{ margin-left: 1rem; }
 .small_action { text-align: right; color: var(--pink); display: inline-block; margin: 0 1rem; vertical-align: middle; }
-.small_action span { width: 1.5rem; margin-right: 0.5rem; height: 1.5rem; display: inline-block; text-align: center; cursor: pointer;  border-radius: 1.5rem; }
+.small_action span { width: 1.5rem; margin-right: 0.5rem; line-height: 1.5rem; display: inline-block; text-align: center; cursor: pointer;  border-radius: 1.5rem; }
 .small_action span:hover { background-color: #d75d7f30; }
+.codewrapper { width: 80ch; overflow: auto; }
 
 div.detail p { margin: 0.5rem 0; font-size: 0.9rem; }
 div.detail .title { width: 15rem; display: inline-block; }
 div.detail .value { display: inline-block; }
 div.detail .tag { font-style: normal; color: var(--blue); display: inline-block; padding: 0.2rem 0.5rem; background-color: #0001;
-	border-radius: 0.2rem; font-family: monospace; font-size: 0.75rem; }
+	border-radius: 0.2rem; font-family: monospace; font-size: 0.75rem; margin-right: 0.5rem; }
 
 .page section { padding: 2rem; background-color: #fcfcfc; box-shadow: #0003 0px 1px 3px; margin-bottom: 2rem; }
-.page section > h2:first-child { padding-top: 0; }
+.page section > h2:first-child { padding-top: 0; font-weight: 400; }
+.page section > h2 + p { margin-bottom: 1rem; color: #0008; font-size: 0.8rem; }
 
 p + pre { margin-top: 1.5rem !important; }
 code:not([class*="language-"]) { display: inline-block; padding: 0.1rem 0.3rem; border-radius: 0.3rem; background-color: #0001; font-size: 0.8rem; }

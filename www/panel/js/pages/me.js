@@ -40,7 +40,7 @@ var x = new Promise((ok, nok) =>
 								Node.span({className: 'icon'}, 'logout'), 
 								Node.span(Translator.get('me.logout'))])
 						]),
-						Node.section({className: 'open'},
+						Node.section(
 						[
 							Node.h2(Translator.get('me.info')),
 							Node.div(Node.div({className: 'detail'}, [

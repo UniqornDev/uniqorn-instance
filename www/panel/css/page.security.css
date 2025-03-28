@@ -8,7 +8,6 @@ li.card {
 }
 li.card .icon { margin-right: 0.5rem; font-size: 1.3rem; line-height: 0; vertical-align: sub; }
 li.card:hover { background-color: #747caa60; }
-.page.security h2 + p { margin-bottom: 1rem; color: #0008; font-size: 0.8rem; }
 
 .bicolumn { display: flex; flex-flow: row nowrap; align-items: stretch; gap: 1rem; }
 .bicolumn > div { flex: 1 1 50%; min-width: 17rem; }

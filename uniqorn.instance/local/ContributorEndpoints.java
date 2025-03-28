@@ -1,8 +1,13 @@
 package local;
 
+import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
+import aeonics.Boot;
 import aeonics.data.Data;
 import aeonics.entity.*;
 import aeonics.entity.security.Group;
@@ -15,6 +20,7 @@ import aeonics.http.Endpoint;
 import aeonics.http.HttpException;
 import aeonics.manager.Config;
 import aeonics.manager.Manager;
+import aeonics.manager.Scheduler;
 import aeonics.manager.Security;
 import aeonics.http.Endpoint.Rest;
 import aeonics.template.Factory;
@@ -36,6 +42,7 @@ public class ContributorEndpoints
 	public static void register()
 	{
 		_Self.register();
+		_System.register();
 		_Workspace.register();
 		_Endpoint.register();
 		_Version.register();
@@ -104,6 +111,89 @@ public class ContributorEndpoints
 	
 	// ========================================
 	//
+	// SYSTEM
+	//
+	// ========================================
+	
+	private static class _System
+	{
+		private static void register() { }
+		
+		private static final Endpoint.Rest.Type status = new Endpoint.Rest() { }
+			.template()
+			.summary("Instance status")
+			.description("This endpoint returns the current limits and plan")
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Data info = Data.map()
+					.put("plan", Manager.of(Config.class).get(Api.class, "plan"))
+					.put("prefix", Manager.of(Config.class).get(Api.class, "prefix"))
+					.put("limits", Data.list()
+						.add(Data.map()
+							.put("name", "workspaces")
+							.put("max", Manager.of(Config.class).get(Api.class, "workspaces"))
+							.put("current", Registry.of(Workspace.class).size()))
+						.add(Data.map()
+							.put("name", "endpoints")
+							.put("max", Manager.of(Config.class).get(Api.class, "endpoints"))
+							.put("current", Registry.of(uniqorn.Endpoint.class).size()))
+						.add(Data.map()
+							.put("name", "consumers")
+							.put("max", Manager.of(Config.class).get(Api.class, "consumers"))
+							.put("current", Registry.of(User.class).filter(u -> u.hasRole(ManagerEndpoints.ROLE_CONSUMER)).size()))
+						.add(Data.map()
+							.put("name", "users")
+							.put("max", Manager.of(Config.class).get(Api.class, "users"))
+							.put("current", Registry.of(User.class).filter(u -> u.hasRole(ManagerEndpoints.ROLE_CONTRIBUTOR) || u.hasRole(ManagerEndpoints.ROLE_MANAGER)).size()))
+						.add(Data.map()
+							.put("name", "env")
+							.put("max", Manager.of(Config.class).get(Api.class, "env"))
+							.put("current", Manager.of(Config.class).all(Api.class).keySet().stream().filter(key -> key.startsWith("env.")).count()))
+						.add(Data.map()
+							.put("name", "versions")
+							.put("max", (Manager.of(Config.class).get(Api.class, "versions").asLong()+1) * Manager.of(Config.class).get(Api.class, "endpoints").asLong())
+							.put("current", Registry.of(Version.class).size()))
+						.add(Data.map()
+							.put("name", "rate")
+							.put("max", Manager.of(Config.class).get(Api.class, "rate").asLong() * Manager.of(Config.class).get(Api.class, "endpoints").asLong())
+							.put("current", StreamSupport.stream(Registry.of(uniqorn.Endpoint.class).spliterator(), false).mapToLong(e -> e.counter().get()).sum()))
+					);
+				
+				Data warnings = Data.list();
+				int versions = Manager.of(Config.class).get(Api.class, "versions").asInt();
+				int rate = Manager.of(Config.class).get(Api.class, "rate").asInt();
+				for( uniqorn.Endpoint.Type e : Registry.of(uniqorn.Endpoint.class) )
+				{
+					int current = e.countRelations("versions");
+					if( current >= versions )
+					{
+						warnings.add(Data.map()
+							.put("type", "versions")
+							.put("max", versions)
+							.put("current", current)
+							.put("endpoint", e.id()));
+					}
+					if( e.counter().get() >= (rate * 0.8) )
+					{
+						warnings.add(Data.map()
+							.put("type", "rate")
+							.put("max", rate)
+							.put("current", e.counter().get())
+							.put("endpoint", e.id()));
+					}
+				}
+				
+				return info.put("warnings", warnings);
+			})
+			.url(ROOT + "/status")
+			.method("GET")
+			;
+	}
+		
+	// ========================================
+	//
 	// WORKSPACE
 	//
 	// ========================================
@@ -122,8 +212,8 @@ public class ContributorEndpoints
 				.format(Parameter.Format.TEXT)
 				.optional(false)
 				.max(50))
-			.add(new Parameter("path")
-				.summary("Path")
+			.add(new Parameter("prefix")
+				.summary("Prefix")
 				.description("The url path prefix")
 				.format(Parameter.Format.TEXT)
 				.optional(true)
@@ -140,9 +230,19 @@ public class ContributorEndpoints
 					if( Registry.of(Workspace.class).get(data.asString("name")) != null )
 						throw new HttpException(400, "Duplicate workspace name");
 					
+					// normalize prefix
+					String prefix = data.asString("prefix");
+					if( prefix.length() > 0 )
+					{
+						if( !prefix.startsWith("/") ) prefix = "/" + prefix;
+						prefix.replaceAll("/+", "/");
+						if( prefix.endsWith("/") ) prefix = prefix.substring(0, prefix.length()-1);
+						prefix = Paths.get(prefix).normalize().toString().replace('\\', '/');
+					}
+					
 					Workspace.Type workspace = Factory.of(Workspace.class).get(Workspace.class).create()
 						.name(data.asString("name"))
-						.parameter("prefix", data.get("path"));
+						.parameter("prefix", prefix);
 					
 					return Data.map().put("id", workspace.id());
 				}
@@ -167,8 +267,8 @@ public class ContributorEndpoints
 				.format(Parameter.Format.TEXT)
 				.optional(true)
 				.max(50))
-			.add(new Parameter("path")
-				.summary("Path")
+			.add(new Parameter("prefix")
+				.summary("Prefix")
 				.description("The url path prefix")
 				.format(Parameter.Format.TEXT)
 				.optional(true)
@@ -182,14 +282,23 @@ public class ContributorEndpoints
 					Workspace.Type workspace = Registry.of(Workspace.class).get(data.asString("id"));
 					if( workspace == null ) throw new HttpException(404, "Unknown workspace");
 					
-					if( !data.isNull("name") )
+					if( !data.isEmpty("name") )
 					{
 						if( Registry.of(Workspace.class).get(data.asString("name")) != null &&  Registry.of(Workspace.class).get(data.asString("name")) != workspace )
 							throw new HttpException(400, "Duplicate workspace name");
 						workspace.name(data.asString("name"));
 					}
-					if( !data.isNull("path") )
-						workspace.parameter("prefix", data.get("path"));
+					
+					// normalize prefix
+					String prefix = data.asString("prefix");
+					if( prefix.length() > 0 )
+					{
+						if( !prefix.startsWith("/") ) prefix = "/" + prefix;
+						prefix.replaceAll("/+", "/");
+						if( prefix.endsWith("/") ) prefix = prefix.substring(0, prefix.length()-1);
+						prefix = Paths.get(prefix).normalize().toString().replace('\\', '/');
+					}
+					workspace.parameter("prefix", prefix);
 					
 					return Data.map().put("success", true);
 				}
@@ -226,14 +335,53 @@ public class ContributorEndpoints
 			.template()
 			.summary("List workspaces")
 			.description("This endpoint lists all workspaces")
+			.add(new Parameter("full")
+				.summary("Full")
+				.description("If true, returns the full listing of workspaces and their endpoints")
+				.format(Parameter.Format.BOOLEAN)
+				.rule(Parameter.Rule.BOOLEAN)
+				.optional(true)
+				.defaultValue(false))
 			.create()
 			.<Rest.Type>cast()
 			.process(data ->
 			{
-				Data list = Data.list();
-				for( Workspace.Type w : Registry.of(Workspace.class) )
-					list.add(Data.map().put("id", w.id()).put("name", w.name()).put("path", w.valueOf("prefix")));
-				return list;
+				if( !data.asBool("full") )
+				{
+					Data list = Data.list();
+					for( Workspace.Type w : Registry.of(Workspace.class) )
+						list.add(Data.map().put("id", w.id()).put("name", w.name()).put("prefix", w.valueOf("prefix")));
+					return list;
+				}
+				else
+				{
+					Data list = Data.map().put("prefix", Manager.of(Config.class).get(Api.class, "prefix"));
+					Data workspaces = Data.list();
+					
+					for( Workspace.Type w : Registry.of(Workspace.class) )
+					{
+						Data workspace = Data.map().put("id", w.id()).put("name", w.name()).put("prefix", w.valueOf("prefix"));
+						Data endpoints = Data.list();
+						
+						for( Tuple<Entity, Data> e : w.relations("endpoints") )
+						{
+							if( e.a == null ) continue;
+							Data endpoint = Data.map().put("id", e.a.id()).put("enabled", e.a.valueOf("enabled").asBool());
+							Endpoint.Rest.Type r = e.a.<uniqorn.Endpoint.Type>cast().api() != null ? e.a.<uniqorn.Endpoint.Type>cast().api().api() : null;
+							if( r == null )
+								endpoint.put("method", null).put("path", null);
+							else
+								endpoint.put("method", r.method()).put("path", r.url());
+							
+							endpoints.add(endpoint);
+						}
+						
+						workspace.put("endpoints", endpoints);
+						workspaces.add(workspace);
+					}
+					
+					return list.put("workspaces", workspaces);
+				}
 			})
 			.url(ROOT + "/workspaces")
 			.method("GET")
@@ -260,7 +408,7 @@ public class ContributorEndpoints
 				for( Tuple<Entity, Data> e : w.relations("endpoints") )
 					endpoints.add(e.a.export());
 					
-				return Data.map().put("id", w.id()).put("name", w.name()).put("path", w.valueOf("prefix")).put("endpoints", endpoints);
+				return Data.map().put("id", w.id()).put("name", w.name()).put("prefix", w.valueOf("prefix")).put("endpoints", endpoints);
 			})
 			.url(ROOT + "/workspace/{id}")
 			.method("GET")
@@ -301,8 +449,20 @@ public class ContributorEndpoints
 				{
 					if( Registry.of(uniqorn.Endpoint.class).size() >= Manager.of(Config.class).get(Api.class, "endpoints").asInt() )
 						throw new HttpException(429, "Maximum number of endpoints reached");
+					Workspace.Type workspace = Registry.of(Workspace.class).get(data.asString("workspace"));
+					if( workspace == null ) throw new HttpException(404, "Unknown workspace");
 					
 					uniqorn.Endpoint.Type endpoint = Factory.of(uniqorn.Endpoint.class).get(uniqorn.Endpoint.class).create();
+					try
+					{
+						endpoint.updateHead(data.asString("code"));
+						workspace.addRelation("endpoints", endpoint);
+					}
+					catch(Exception e)
+					{
+						Registry.of(uniqorn.Endpoint.class).remove(endpoint);
+						throw e;
+					}
 					
 					return Data.map().put("id", endpoint.id());
 				}
@@ -365,7 +525,7 @@ public class ContributorEndpoints
 				
 				return Data.map().put("success", true);
 			})
-			.url(ROOT + "/endpoint")
+			.url(ROOT + "/endpoint/{id}")
 			.method("PUT")
 			;
 			
@@ -409,7 +569,7 @@ public class ContributorEndpoints
 			{
 				Data list = Data.list();
 				
-				if( !data.isNull("workspace") )
+				if( !data.isEmpty("workspace") )
 				{
 					Workspace.Type w = Registry.of(Workspace.class).get(data.asString("id"));
 					if( w == null ) throw new HttpException(404, "Unknown workspace");
@@ -447,11 +607,43 @@ public class ContributorEndpoints
 				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("id"));
 				if( e == null ) throw new HttpException(404, "Unknown endpoint");
 				
+				Data endpoint = Data.map().put("id", e.id()).put("enabled", e.valueOf("enabled").asBool());
+				
+				Version.Type head = e.firstRelation("head");
+				endpoint.put("head", Data.map().put("id", head.id()).put("code", head.valueOf("code")).put("date", head.date()));
+				
+				Endpoint.Rest.Type r = e.<uniqorn.Endpoint.Type>cast().api() != null ? e.<uniqorn.Endpoint.Type>cast().api().api() : null;
+				if( r == null )
+				{
+					endpoint
+						.put("method", null)
+						.put("path", null)
+						.put("summary", null)
+						.put("description", null)
+						.put("returns", null)
+						.put("parameters", Data.list());
+				}
+				else
+				{
+					endpoint
+						.put("method", r.method())
+						.put("path", r.url())
+						.put("summary", r.template().summary())
+						.put("description", r.template().description())
+						.put("returns", r.template().<Endpoint.Template>cast().returns())
+						.put("parameters", r.template().parameters().stream().map(p -> p.name()).collect(Collectors.toList()));
+				}
+				
 				Data versions = Data.list();
 				for( Tuple<Entity, Data> v : e.relations("versions") )
-					versions.add(v.a.export());
+				{
+					if( v.a == null ) continue;
+					Data version = Data.map().put("id", v.a.id()).put("name", v.a.name()).put("date", v.a.<Version.Type>cast().date());
+					versions.add(version);
+				}
+				endpoint.put("versions", versions);
 					
-				return e.export().put("versions", versions);
+				return endpoint;
 			})
 			.url(ROOT + "/endpoint/{id}")
 			.method("GET")
@@ -638,11 +830,54 @@ public class ContributorEndpoints
 				
 				Data versions = Data.list();
 				for( Tuple<Entity, Data> v : e.relations("versions") )
-					versions.add(v.a.export());
+				{
+					if( v.a == null ) continue;
+					Data version = Data.map().put("id", v.a.id()).put("name", v.a.name()).put("date", v.a.<Version.Type>cast().date());
+					versions.add(version);
+				}
 					
-				return e.export().put("versions", versions);
+				return versions;
 			})
 			.url(ROOT + "/endpoint/{endpoint}/versions")
+			.method("GET")
+			;
+			
+		private static final Endpoint.Rest.Type versionDetail = new Endpoint.Rest() { }
+			.template()
+			.summary("Fetch versions")
+			.description("This endpoint returns the code of a version")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The version id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("endpoint")
+				.summary("Endpoint")
+				.description("The endpoint id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("endpoint"));
+				if( e == null ) throw new HttpException(404, "Unknown endpoint");
+				
+				Version.Type v = Registry.of(Version.class).get(data.asString("id"));
+				if( v == null ) throw new HttpException(404, "Unknown version");
+				
+				if( !e.hasRelation("versions", v) )
+					if( v == null ) throw new HttpException(404, "Unknown version in the specified endpoint");
+				
+				return Data.map()
+					.put("id", v.id())
+					.put("name", v.name())
+					.put("date", v.date())
+					.put("code", v.valueOf("code"));
+			})
+			.url(ROOT + "/endpoint/{endpoint}/version/{id}")
 			.method("GET")
 			;
 	}
@@ -657,6 +892,29 @@ public class ContributorEndpoints
 	{
 		private static void register() { }
 		
+		private static final Endpoint.Rest.Type envList = new Endpoint.Rest() { }
+			.template()
+			.summary("List environment parameter")
+			.description("This endpoint lists all environment parameters")
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Data list = Data.list();
+				for( Map.Entry<String, Data> c : Manager.of(Config.class).all(Api.class).entrySet() )
+				{
+					if( !c.getKey().startsWith("env.") ) continue;
+					list.add(Data.map()
+						.put("name", c.getKey().substring(4))
+						.put("value", c.getValue())
+						.put("description", Manager.of(Config.class).definition(Api.class, c.getKey()).description()));
+				}
+				return list;
+			})
+			.url(ROOT + "/env")
+			.method("GET")
+			;
+		
 		private static final Endpoint.Rest.Type envSet = new Endpoint.Rest() { }
 			.template()
 			.summary("Set environment parameter")
@@ -667,11 +925,16 @@ public class ContributorEndpoints
 				.format(Parameter.Format.TEXT)
 				.rule("0123456789abcdefghijklmnopqrstuvwxyz_")
 				.optional(false).min(1).max(50))
+			.add(new Parameter("description")
+				.summary("Description")
+				.description("The environment parameter description")
+				.format(Parameter.Format.TEXT)
+				.optional(true).max(2048))
 			.add(new Parameter("value")
 				.summary("Value")
 				.description("The environment parameter value")
 				.format(Parameter.Format.TEXT)
-				.max(256))
+				.max(512))
 			.create()
 			.<Rest.Type>cast()
 			.process(data ->
@@ -686,6 +949,8 @@ public class ContributorEndpoints
 					}
 					
 					Manager.of(Config.class).set(Api.class, "env." + data.asString("name"), data.get("value"));
+					if( !data.isEmpty("description") )
+						Manager.of(Config.class).definition(Api.class, "env." + data.asString("name")).description(data.asString("description"));
 					return Data.map().put("success", true);
 				}
 			})

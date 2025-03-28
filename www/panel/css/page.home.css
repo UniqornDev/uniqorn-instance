@@ -1,0 +1,33 @@
+
+.page.home { padding-top: 5rem !important; }
+
+.page.home .plan { font-weight: 600; color: var(--white); font-size: 1rem; text-transform: uppercase; letter-spacing: 0.2rem;
+	position: absolute; top: 0; right: 0;
+	transform: translate(calc((1 - cos(45deg))*100%), -100%) rotate(45deg); transform-origin: 0% 100%;
+	text-align: center; padding: 0.8rem 3.5rem; text-align: center;
+}
+.page.home .plan p { font-weight: 300; font-size: 0.8rem; }
+.page.home .plan.trial { background-color: var(--pink); }
+.page.home .plan.personal { background-color: var(--green); }
+.page.home .plan.team { background-color: var(--yellow); }
+.page.home .plan.enterprise { background-color: var(--blue); }
+.page.home .plan.custom { background-color: var(--orange); }
+
+.page.home .limit { 
+	display: inline-block; padding: 2rem; background-color: #fcfcfc; box-shadow: #0003 0px 1px 3px;
+	margin-bottom: 2rem; margin-right: 2rem; width: 15rem; height: 13rem;
+}
+.page.home .limit h3 { color: var(--blue); font-weight: 300; font-size: 1rem; padding-top: 0; }
+
+.page.home .warning { 
+	background-color: #fff8; overflow: hidden; border-radius: 0.3rem;
+	margin-bottom: 0.5rem; box-shadow: #0003 0px 1px 3px; font-size: 0.8rem;
+}
+.page.home .warning + :not(.warning) { margin-top: 1.5rem; }
+.page.home .warning::before { 
+	font-family: material !important; font-feature-settings: "liga" 1; 
+	display: inline-block; vertical-align: middle; font-size: 1.3rem; color: var(--white); 
+	padding: 0.5rem 1rem; margin-right: 1rem;
+}
+.page.home .warning.rate::before { content: '\e9e4'; background-color: var(--orange); }
+.page.home .warning.versions::before { content: '\f3a0'; background-color: var(--yellow); }

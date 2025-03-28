@@ -132,7 +132,7 @@ public class ManagerEndpoints
 					Role.Type role = Registry.of(Role.class).get(data.asString("id"));
 					if( role == null || role.internal() ) throw new HttpException(404, "Unknown role");
 					
-					if( !data.isNull("name") )
+					if( !data.isEmpty("name") )
 					{
 						if( Registry.of(Role.class).get(data.asString("name")) != null &&  Registry.of(Role.class).get(data.asString("name")) != role )
 							throw new HttpException(400, "Duplicate role name");
@@ -241,7 +241,7 @@ public class ManagerEndpoints
 					Group.Type group = Registry.of(Group.class).get(data.asString("id"));
 					if( group == null || group.internal() ) throw new HttpException(404, "Unknown group");
 					
-					if( !data.isNull("name") )
+					if( !data.isEmpty("name") )
 					{
 						if( Registry.of(Group.class).get(data.asString("name")) != null &&  Registry.of(Group.class).get(data.asString("name")) != group )
 							throw new HttpException(400, "Duplicate group name");
@@ -422,7 +422,7 @@ public class ManagerEndpoints
 							user.addRelation("roles", Registry.of(Role.class).get(ROLE_MANAGER));
 					}
 					
-					if( !data.isNull("name") )
+					if( !data.isEmpty("name") )
 						user.name(data.asString("name"));
 					
 					return Data.map().put("success", true);

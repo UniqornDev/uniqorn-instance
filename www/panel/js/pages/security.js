@@ -2,7 +2,7 @@
 let ae = globalThis.ae;
 var x = new Promise((ok, nok) =>
 {
-	ae.require('Page', 'Node', 'Ajax', 'Translator', 'Notify', 'Modal', 'page.security.css', 'ext/prism.js', 'ext/prism.css').then(([Page, Node, Ajax, Translator, Notify, Modal]) =>
+	ae.require('Page', 'Node', 'Ajax', 'Translator', 'Notify', 'Modal', 'page.security.css').then(([Page, Node, Ajax, Translator, Notify, Modal]) =>
 	{
 		var page = new Page();
 		Object.assign(page, 
@@ -10,7 +10,7 @@ var x = new Promise((ok, nok) =>
 			show: function()
 			{
 				this.dom.classList.add('security');
-				document.body.querySelectorAll('nav li').forEach(e => { if( e.dataset.link == 'security') e.classList.add('selected'); else e.classList.remove('selected'); });
+				document.body.querySelectorAll('nav li').forEach(e => e.classList.toggle('selected', e.dataset.link === 'security'));
 				
 				this.init();
 				return Promise.resolve();

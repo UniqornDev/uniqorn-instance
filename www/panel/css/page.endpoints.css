@@ -1,0 +1,41 @@
+
+.page.endpoints { }
+
+.page.endpoints > div { margin-bottom: 2rem; }
+
+.page.endpoints .prefix { display: inline-block; color: #000a; font-size: 0.9rem;
+	font-weight: 600; padding: 0.2rem 0.5rem; border-radius: 0.3rem; margin-left: 1rem;
+}
+.page.endpoints .prefix + .prefix { margin-left: 0.2rem; }
+.page.endpoints .prefix.g { background-color: var(--yellow); }
+.page.endpoints .prefix.w { background-color: var(--orange); }
+.page.endpoints .prefix.l { background-color: #ccc; }
+
+.page.endpoints .endpoint { border: 1px solid #fff; padding: 0.5rem; margin-top: 0.5rem; position: relative; }
+.page.endpoints .endpoint.GET      { border-color: var(--blue);   background-color: #747caa20; }
+.page.endpoints .endpoint.POST     { border-color: var(--green);  background-color: #99ac1b20; }
+.page.endpoints .endpoint.PUT      { border-color: var(--yellow); background-color: #ebb10020; }
+.page.endpoints .endpoint.DELETE   { border-color: var(--orange); background-color: #d86c3920; }
+.page.endpoints .endpoint.PATCH    { border-color: var(--pink);   background-color: #d75d7f20; }
+.page.endpoints .endpoint.OTHER    { border-color: var(--blue);   background-color: #747caa20; }
+.page.endpoints .endpoint.disabled { border-color: #ddd; background-color: #eee4; color: #aaa; }
+.page.endpoints .endpoint.disabled .method { color: #aaa !important; }
+
+.page.endpoints .endpoint .method { display: inline-block; border-radius: 0.3rem; padding: 0.4rem 0.7rem; margin-right: 1rem; font-size: 0.9rem; font-weight: 400;  color: var(--white); }
+.page.endpoints .endpoint .method.GET    { color: var(--blue); }
+.page.endpoints .endpoint .method.POST   { color: var(--green); }
+.page.endpoints .endpoint .method.PUT    { color: var(--yellow); }
+.page.endpoints .endpoint .method.DELETE { color: var(--orange); }
+.page.endpoints .endpoint .method.PATCH  { color: var(--pink); }
+.page.endpoints .endpoint .method.OTHER  { color: var(--blue); }
+
+.page.endpoints .switch { 
+	cursor: pointer; display: inline-block;  transition: .4s; position: absolute; vertical-align: top;
+	background-color: #2cb457; border-radius: 3rem; height: 1.4rem; width: 2.4rem; right: 0.5rem; top: 0.7rem;
+}
+.page.endpoints .switch::before { 
+	position: absolute; content: ""; height: 1rem; width: 1rem; left: 0.2rem; bottom: 0.2rem; background-color: var(--white); 
+	transition: .4s; border-radius: 50%; transform: translateX(1rem);
+}
+.page.endpoints .endpoint.disabled .switch::before { transform: translateX(0); }
+.page.endpoints .endpoint.disabled .switch { background-color: #ccc; }
