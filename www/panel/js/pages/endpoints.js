@@ -123,7 +123,7 @@ var x = new Promise((ok, nok) =>
 			{
 				var self = this;
 				Modal.prompt(
-					Node.h2(Translator.get('endpoints.workspace.code')),
+					Node.h2(Translator.get('endpoints.workspace.add')),
 					Node.form([
 						Node.input({type: 'text', name: 'name', placeholder: Translator.get('endpoints.workspace.name')}),
 						Node.input({type: 'text', name: 'prefix', placeholder: Translator.get('endpoints.workspace.prefix')})

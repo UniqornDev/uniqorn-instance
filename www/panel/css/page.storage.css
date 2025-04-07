@@ -1,0 +1,17 @@
+
+.page.storage { }
+
+form.database fieldset, form.storage fieldset { white-space: nowrap; margin-bottom: 1rem !important; }
+form.database label, form.storage label { display: inline-block; width: 10rem; color: var(--blue); font-size: 1rem; }
+form.database input, form.storage input { display: inline-block; width: 15rem !important; margin: 0 !important; font-size: 1rem; padding: 0.4rem !important; }
+form.database select, form.storage select { display: inline-block; width: 15rem !important; margin: 0 !important; font-size: 1rem; padding: 0.4rem !important; }
+form.database input[type="checkbox"], form.storage input[type="checkbox"] { width: 2rem !important; }
+
+
+.page.security ol { margin: 0; padding: 0; list-style: none; }
+li.card { 
+	display: inline-block; padding: 0.5rem 1rem; border: 2px solid var(--blue); margin-right: 0.5rem; border-radius: 3rem; 
+	background-color: #747caa20; cursor: pointer; white-space: nowrap; margin-bottom: 0.5rem;
+}
+li.card .icon { margin-right: 0.5rem; font-size: 1.3rem; line-height: 0; vertical-align: sub; }
+li.card:hover { background-color: #747caa60; }

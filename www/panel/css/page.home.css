@@ -20,7 +20,7 @@
 .page.home .limit h3 { color: var(--blue); font-weight: 300; font-size: 1rem; padding-top: 0; }
 
 .page.home .warning { 
-	background-color: #fff8; overflow: hidden; border-radius: 0.3rem;
+	background-color: #fff8; overflow: hidden; border-radius: 0.3rem; cursor: pointer;
 	margin-bottom: 0.5rem; box-shadow: #0003 0px 1px 3px; font-size: 0.8rem;
 }
 .page.home .warning + :not(.warning) { margin-top: 1.5rem; }

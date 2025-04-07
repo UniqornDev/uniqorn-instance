@@ -34,6 +34,10 @@ export default {
 	'code.security.user': "You can control access to your endpoints by checking the user. Grant or deny access based on <em>user name</em>, and combine them with other conditions if needed. Remember that only <em>consumers</em> have access to your APIs.<br /><br />API consumers must use the <code>Authorization: Bearer [key]</code> header to authenticate when calling your APIs.",
 	'code.env': "You can fetch global configuration parameters in your code. When a value needs to change, you do not have to redeploy your APIs.",
 	'code.endpoint.documentation': "You can improve your API by providing documentation directly in your code.",
+	'code.log': "You can emit logs to help troubleshooting your endpoints. There is no log retention, only live information is streamed to the panel.",
+	'code.debug': "You can dump variables and inspect the call stack trace to help troubleshooting your endpoints. There is no retention, only live information is streamed to the panel.",
+	'code.storage': "You can fetch and store content from an Object Storage. To ease deployment, you just reference the storage by name.",
+	'code.database': "You can fetch and store data from a database using plain SQL. To ease deployment, you just reference the database by name.",
 	
 	'menu.home': "Overview",
 	'menu.security': "Security",
@@ -54,6 +58,10 @@ export default {
 	'home.limit.endpoints': "Endpoints",
 	'home.limit.consumers': "Consumers",
 	'home.limit.users': "Users",
+	'home.limit.groups': "Groups",
+	'home.limit.roles': "Roles",
+	'home.limit.storages': "Storages",
+	'home.limit.databases': "Databases",
 	'home.limit.env': "Global Variables",
 	'home.limit.versions': "Code Versions",
 	'home.limit.rate': "Hourly Calls",
@@ -61,6 +69,10 @@ export default {
 	'home.limit.tooltip.endpoints': "Total number of API endpoints",
 	'home.limit.tooltip.consumers': "Total number of API consumer accounts",
 	'home.limit.tooltip.users': "Total number of contributor and manager user accounts",
+	'home.limit.tooltip.groups': "Total number of security groups",
+	'home.limit.tooltip.roles': "Total number of security roles",
+	'home.limit.tooltip.storages': "Total number of storage connections",
+	'home.limit.tooltip.databases': "Total number of database connections",
 	'home.limit.tooltip.env': "Total number of global environment variables",
 	'home.limit.tooltip.versions': "Total number of versions across all endpoints",
 	'home.limit.tooltip.rate': "Total API calls this hour across all endpoints",
@@ -191,7 +203,7 @@ export default {
 	'env.add': "Add variable",
 	'env.set': "Set variable",
 	'env.explain': "Environment variables are accessible in read-only mode from your code. This is the best way to manage configuration settings in a centralized way.",
-	'env.add.explain': "Environment variable names can only be composed of <em>lower case letters</em>, <em>numbers</em>, and the underscore &quot;<em>_</em>&quot; sign.",
+	'env.add.explain': "Environment variable names can only be composed of <em>lower case letters</em>, <em>numbers</em>, and the <em>dot</em> character.",
 	'env.name': "Variable name",
 	'env.description': "Description...",
 	'env.value': "Value",
@@ -265,6 +277,73 @@ export default {
 	'endpoint.head.update': "Update live version",
 	'endpoint.head.success': "Live version updated",
 	'endpoint.head.error': "Could not update live version",
+	
+	'troubleshoot.log': "Live log stream",
+	'troubleshoot.debug': "Live debug stream",
+	'troubleshoot.log.explain': "You can set the global log level and all matching log statements reached in your code will be shown below. "
+		+ "<br />The log level is set for everyone and can affect other users that are also streaming logs at the same time. "
+		+ "<br />Once you stop streaming logs, the log level is reset globally, which will also impact other live stream sessions. "
+		+ "<br /><span class=\"orange\">Only the last 50 log entries are displayed. If you leave this page, all displayed log entries are lost.</span>",
+	'troubleshoot.debug.explain': "When a debug statement is reached in your code, the output is shown below. Using the capture filter, you can refine which "
+		+ "information is captured."
+		+ "<br /><span class=\"orange\">Only the last 20 debug entries are displayed. If you leave this page, all displayed debug entries are lost.</span>",
+	'troubleshoot.start': "Start",
+	'troubleshoot.stop': "Stop",
+	'troubleshooting.log.level': "Set the global log level",
+	'troubleshoot.log.connected': "Log stream connected",
+	'troubleshoot.log.disconnected': "Log stream disconnected",
+	'troubleshoot.debug.filter': "Debug filter key",
+	'troubleshoot.debug.connected': "Debug stream connected",
+	'troubleshoot.debug.disconnected': "Debug stream disconnected",
+	'troubleshoot.cleanup': "Cleanup",
+	'troubleshoot.reboot': "Reboot instance",
+	'troubleshoot.reboot.confirm': "<em>Whoa, easy!</em> Be careful with this.<br /><br />This operation will kill your instance and restart it. "
+		+ "All unsaved work will be lost and there will be an interruption of service during reboot.<br /><br />"
+		+ "Please enter your multifactor code to confirm:",
+	'troubleshoot.mfa': "Multifactor code",
+	'troubleshoot.reboot.abort': "Multifactor code missing",
+	'troubleshoot.reboot.error': "Could not reboot instance",
+	
+	'storage.file.add': "Add Storage",
+	'storage.database.add': "Add Database",
+	'storage.file.title': "Object Storages",
+	'storage.file.explain': "The object storages is a simple file-oriented persistent storage that can be used to store and retrieve data. It acts as a bridge "
+		+ "between different technologies to ensure common operations from your APIs."
+		+ "<br /><span class=\"orange\">Storages cannot be modified after they are created. Create a new one if connection parameters changed.</span>",
+	'storage.file.delete.confirm': "Please confirm you want to remove storage <em>{}</em>."
+		+ "<br />If this storage is used in your API code, you will have to update it.",
+	'storage.file.delete.success': "Storage removed",
+	'storage.file.delete.error': "Could not remove storage",
+	'storage.file.name': "Display name",
+	'storage.file.type': "Provider",
+	'storage.file.path': "Path",
+	'storage.file.empty': "Missing connection information",
+	'storage.file.add.success': "Storage created",
+	'storage.file.add.error': "Could not create storage",
+	'storage.file.rename.confirm': "<em>Whoa, easy!</em> Be careful with this.<br /><br />If you change the storage name you'll need to update your API code too.",
+	'storage.file.rename.success': "Storage renamed",
+	'storage.file.rename.error': "Could not rename storage",
+	'storage.database.title': "Databases",
+	'storage.database.explain': "Databases offer direct SQL access to various providers."
+		+ "<br /><span class=\"orange\">Databases cannot be modified after they are created. Create a new one if connection parameters changed.</span>",
+	'storage.database.delete.confirm': "Please confirm you want to remove database <em>{}</em>."
+		+ "<br />If this database is used in your API code, you will have to update it.",
+	'storage.database.delete.success': "Database removed",
+	'storage.database.delete.error': "Could not remove database",
+	'storage.database.name': "Display name",
+	'storage.database.type': "Provider",
+	'storage.database.host': "Host",
+	'storage.database.port': "Port",
+	'storage.database.database': "Database",
+	'storage.database.username': "Username",
+	'storage.database.password': "Password",
+	'storage.database.ssl': "Use SSL/TLS",
+	'storage.database.empty': "Missing connection information",
+	'storage.database.add.success': "Database created",
+	'storage.database.add.error': "Could not create database",
+	'storage.database.rename.confirm': "<em>Whoa, easy!</em> Be careful with this.<br /><br />If you change the database name you'll need to update your API code too.",
+	'storage.database.rename.success': "Database renamed",
+	'storage.database.rename.error': "Could not rename database",
 	
 	'': ""
 };

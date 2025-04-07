@@ -1,0 +1,20 @@
+
+.page.troubleshoot { }
+
+.small_action .disabled {
+	color: #ccc !important;
+	cursor: not-allowed;
+}
+.small_action .disabled:hover { background-color: #eee !important; }
+
+
+.page.troubleshoot ol { max-width: 100%; max-height: 25rem; overflow: auto; }
+.page.troubleshoot li { display: block; margin: 0.5rem 0; padding: 1rem; background-color: #aaa1; font-size: 0.8rem; font-family: monospace; white-space: pre; }
+.page.troubleshoot li .date { }
+.page.troubleshoot li .level { display: inline-block; margin: 0 1rem; }
+.page.troubleshoot li .level.fine { color: var(--blue); }
+.page.troubleshoot li .level.config { color: var(--green); }
+.page.troubleshoot li .level.info { color: var(--yellow); }
+.page.troubleshoot li .level.warning { color: var(--orange); }
+.page.troubleshoot li .level.severe { color: var(--pink); }
+.page.troubleshoot li .message { }

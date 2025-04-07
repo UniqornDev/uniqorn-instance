@@ -34,14 +34,14 @@ input, button, textarea { outline: none !important; }
 .center { text-align: center; }
 .right { text-align: right; }
 
-input { 
+input, select { 
 	display: block; width: 100%; border: 0; 
 	padding: 8px; margin: 16px 0; font-size: 16px; vertical-align: middle; font-weight: 300;
 	border-bottom: 2px solid #aaa;
-	box-sizing: border-box; font-family: body;
+	box-sizing: border-box; font-family: body, sans-serif;
 	color: #000;
 }
-input:focus { border-bottom-color: var(--blue); }
+input:focus, select:focus { border-bottom-color: var(--blue); }
 
 .wait { position: relative; pointer-events: none; }
 .wait * { display: none !important; }

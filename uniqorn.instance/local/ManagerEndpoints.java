@@ -25,9 +25,6 @@ import uniqorn.Api;
 public class ManagerEndpoints 
 {
 	static final String ROOT = "/api/manager";
-	static final String ROLE_MANAGER = "22200000-2100000000000000";
-	static final String ROLE_CONTRIBUTOR = "22200000-2200000000000000";
-	static final String ROLE_CONSUMER = "22200000-2300000000000000";
 	
 	private ManagerEndpoints() { /* no instances */ }
 	
@@ -53,10 +50,28 @@ public class ManagerEndpoints
 			.template()
 			.summary("Reboot instance")
 			.description("This endpoint initiates an instance reboot")
+			.add(new Parameter("mfa")
+				.summary("Multifactor confirmation")
+				.description("Multifactor confirmation")
+				.format(Parameter.Format.TEXT)
+				.optional(false)
+				.max(50))
 			.create()
 			.<Rest.Type>cast()
-			.process(data ->
+			.process((data, user) ->
 			{
+				boolean pass = false;
+				for( Multifactor.Type m : Registry.of(Multifactor.class) )
+				{
+					if( m.check(user, Data.map().put("otp", data.get("mfa"))) )
+					{
+						pass = true;
+						break;
+					}
+				}
+				if( !pass ) throw new HttpException(400, "Invalid multifactor confirmation");
+				
+				Manager.of(Logger.class).log(Logger.SEVERE, Api.class, "Reboot requested by {}", user.name());
 				Manager.of(Scheduler.class).in((time) -> { Boot.MAIN.interrupt(); }, 100);
 				return Data.map().put("success", true);
 			})
@@ -91,7 +106,7 @@ public class ManagerEndpoints
 			{
 				synchronized(_Role.class)
 				{
-					if( Registry.of(Role.class).size() >= 200 )
+					if( Registry.of(Role.class).size() >= Manager.of(Config.class).get(Api.class, "roles").asInt() )
 						throw new HttpException(429, "Maximum number of roles reached");
 					
 					if( Registry.of(Role.class).get(data.asString("name")) != null )
@@ -200,7 +215,7 @@ public class ManagerEndpoints
 			{
 				synchronized(_Group.class)
 				{
-					if( Registry.of(Group.class).size() >= 200 )
+					if( Registry.of(Group.class).size() >= Manager.of(Config.class).get(Api.class, "groups").asInt() )
 						throw new HttpException(429, "Maximum number of groups reached");
 					
 					if( Registry.of(Group.class).get(data.asString("name")) != null )
@@ -325,7 +340,7 @@ public class ManagerEndpoints
 				{
 					if( data.asString("type").equals("consumer") )
 					{
-						if( Registry.of(User.class).filter(u -> u.hasRole(ROLE_CONSUMER)).size() >= Manager.of(Config.class).get(Api.class, "consumers").asInt() )
+						if( Registry.of(User.class).filter(u -> u.hasRole(Constants.ROLE_CONSUMER)).size() >= Manager.of(Config.class).get(Api.class, "consumers").asInt() )
 							throw new HttpException(429, "Maximum number of consumer users reached");
 						
 						// consumer have random login
@@ -333,7 +348,7 @@ public class ManagerEndpoints
 					}
 					else
 					{
-						if( Registry.of(User.class).filter(u -> u.hasRole(ROLE_MANAGER) || u.hasRole(ROLE_CONTRIBUTOR)).size() >= Manager.of(Config.class).get(Api.class, "users").asInt() )
+						if( Registry.of(User.class).filter(u -> u.hasRole(Constants.ROLE_MANAGER) || u.hasRole(Constants.ROLE_CONTRIBUTOR)).size() >= Manager.of(Config.class).get(Api.class, "users").asInt() )
 							throw new HttpException(429, "Maximum number of users reached");
 					}
 					
@@ -345,11 +360,11 @@ public class ManagerEndpoints
 						.parameter("login", data.asString("login"));
 					
 					if( data.asString("type").equals("consumer") )
-						user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONSUMER));
+						user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_CONSUMER));
 					else if( data.asString("type").equals("contributor") )
-						user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONTRIBUTOR)).addRelation("groups", Group.USERS);
+						user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_CONTRIBUTOR)).addRelation("groups", Group.USERS);
 					else if( data.asString("type").equals("manager") )
-						user.addRelation("roles", Registry.of(Role.class).get(ROLE_MANAGER)).addRelation("groups", Group.USERS);;
+						user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_MANAGER)).addRelation("groups", Group.USERS);;
 					
 					return Data.map().put("id", user.id());
 				}
@@ -397,7 +412,7 @@ public class ManagerEndpoints
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
 					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
 					
-					if( !data.isEmpty("login") && (user.hasRole(ROLE_MANAGER) || user.hasRole(ROLE_CONTRIBUTOR)) )
+					if( !data.isEmpty("login") && (user.hasRole(Constants.ROLE_MANAGER) || user.hasRole(Constants.ROLE_CONTRIBUTOR)) )
 					{
 						if( Registry.of(User.class).get(data.asString("login")) != null &&  Registry.of(User.class).get(data.asString("login")) != user )
 							throw new HttpException(400, "Duplicate user login");
@@ -405,21 +420,21 @@ public class ManagerEndpoints
 						user.parameter("login", data.asString("login"));
 					}
 					
-					if( !data.isEmpty("type") && (user.hasRole(ROLE_MANAGER) || user.hasRole(ROLE_CONTRIBUTOR)) )
+					if( !data.isEmpty("type") && (user.hasRole(Constants.ROLE_MANAGER) || user.hasRole(Constants.ROLE_CONTRIBUTOR)) )
 					{
 						// check for last manager
-						if( user.hasRole(ROLE_MANAGER) &&
+						if( user.hasRole(Constants.ROLE_MANAGER) &&
 							!data.asString("type").equals("manager") && 
-							Registry.of(User.class).filter(u -> u.hasRole(ROLE_MANAGER)).size() == 1 )
+							Registry.of(User.class).filter(u -> u.hasRole(Constants.ROLE_MANAGER)).size() == 1 )
 							throw new HttpException(400, "Cannot change level of last manager");
 						
-						user.removeRelation("roles", ROLE_MANAGER);
-						user.removeRelation("roles", ROLE_CONTRIBUTOR);
+						user.removeRelation("roles", Constants.ROLE_MANAGER);
+						user.removeRelation("roles", Constants.ROLE_CONTRIBUTOR);
 						
 						if( data.asString("type").equals("contributor") )
-							user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONTRIBUTOR));
+							user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_CONTRIBUTOR));
 						else if( data.asString("type").equals("manager") )
-							user.addRelation("roles", Registry.of(Role.class).get(ROLE_MANAGER));
+							user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_MANAGER));
 					}
 					
 					if( !data.isEmpty("name") )
@@ -451,7 +466,7 @@ public class ManagerEndpoints
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
 					if( user == null || user.internal() ) return Data.map().put("success", true);
 					
-					if( user.hasRole(ROLE_MANAGER) && Registry.of(User.class).filter(u -> u.hasRole(ROLE_MANAGER)).size() == 1 )
+					if( user.hasRole(Constants.ROLE_MANAGER) && Registry.of(User.class).filter(u -> u.hasRole(Constants.ROLE_MANAGER)).size() == 1 )
 						throw new HttpException(400, "Cannot remove the last manager");
 					
 					Registry.of(User.class).remove(user);
@@ -485,7 +500,7 @@ public class ManagerEndpoints
 				synchronized(_User.class)
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
-					if( user == null || user.internal() || !user.hasRole(ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+					if( user == null || user.internal() || !user.hasRole(Constants.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
 					
 					user.clearRelation("groups");
 					for( Data name : data.get("groups") )
@@ -525,12 +540,12 @@ public class ManagerEndpoints
 				synchronized(_User.class)
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
-					if( user == null || user.internal() || !user.hasRole(ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+					if( user == null || user.internal() || !user.hasRole(Constants.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
 					
 					user.clearRelation("roles");
 					
 					// CAUTION : we need to re-set the ROLE_CONSUMER !
-					user.addRelation("roles", Registry.of(Role.class).get(ROLE_CONSUMER));
+					user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_CONSUMER));
 					
 					for( Data name : data.get("roles") )
 					{
@@ -563,7 +578,7 @@ public class ManagerEndpoints
 				synchronized(_User.class)
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
-					if( user == null || user.internal() || !user.hasRole(ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+					if( user == null || user.internal() || !user.hasRole(Constants.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
 					
 					Collection<Token> tokens = Manager.of(Security.class).listTokens(user);
 					String value = tokens.stream().findFirst().map(t -> t.value()).orElse(null);
@@ -593,7 +608,7 @@ public class ManagerEndpoints
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
 					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
-					if( !user.hasRole(ROLE_CONTRIBUTOR) && !user.hasRole(ROLE_MANAGER) ) throw new HttpException(404, "Unknown user");
+					if( !user.hasRole(Constants.ROLE_CONTRIBUTOR) && !user.hasRole(Constants.ROLE_MANAGER) ) throw new HttpException(404, "Unknown user");
 
 					// find the local provider
 					Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
@@ -635,7 +650,7 @@ public class ManagerEndpoints
 				synchronized(_User.class)
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
-					if( user == null || user.internal() || !user.hasRole(ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+					if( user == null || user.internal() || !user.hasRole(Constants.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
 					
 					Manager.of(Security.class).clearTokens(user);
 					Token token = Manager.of(Security.class).generateToken(user, -1, true, "http", "topic");

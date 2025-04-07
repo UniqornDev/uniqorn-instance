@@ -165,7 +165,7 @@ var x = new Promise((ok, nok) =>
 						}}, Translator.get('save')),
 						Node.button({click: function(e) { e.preventDefault(); m.ok(); }}, Translator.get('cancel')),
 					])
-				]);
+				], true);
 			}
 		});
 		

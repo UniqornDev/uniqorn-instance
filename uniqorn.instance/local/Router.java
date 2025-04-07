@@ -1,11 +1,16 @@
 package local;
 
+import java.util.Objects;
+
 import aeonics.data.Data;
 import aeonics.entity.Entity;
 import aeonics.entity.Message;
 import aeonics.entity.Registry;
+import aeonics.entity.security.User;
 import aeonics.http.Endpoint;
 import aeonics.http.HttpException;
+import aeonics.manager.Logger;
+import aeonics.manager.Manager;
 import aeonics.util.Tuples.Tuple;
 import uniqorn.Api;
 import uniqorn.Workspace;
@@ -37,28 +42,43 @@ public class Router extends Endpoint
 		{
 			String method = request.content().asString("method");
 			String path = request.content().asString("path").substring(prefix.length());
+
+			Manager.of(Logger.class).log(Logger.FINER, Api.class, "{} {}{} call from {} authenticated as {}", 
+				method,
+				prefix(),
+				path,
+				request.connection().clientIp(),
+				Objects.requireNonNullElse(Registry.of(User.class).get(request.user()), User.ANONYMOUS).name());
 			
-			for( Workspace.Type w : Registry.of(Workspace.class) )
+			try
 			{
-				String p = w.valueOf("prefix").asString();
-				if( !path.startsWith(p) ) continue;
-				for( Tuple<Entity, Data> t : w.relations("endpoints") )
+				for( Workspace.Type w : Registry.of(Workspace.class) )
 				{
-					if( t == null || t.a == null || !t.a.<uniqorn.Endpoint.Type>cast().matches(method, path.substring(p.length())) ) continue;
-					
-					uniqorn.Endpoint.Type e = t.a.cast();
-					if( e.counter().incrementAndGet() > limit )
-						throw new HttpException(429, "Call rate limit exceeded");
-					
-					Api a = e.api();
-					if( a == null ) throw new HttpException(404); // race condition
-					Endpoint.Rest.Type r = a.api();
-					if( r == null ) throw new HttpException(404); // race condition
-					
-					return r.process(request);
+					String p = w.valueOf("prefix").asString();
+					if( !path.startsWith(p) ) continue;
+					for( Tuple<Entity, Data> t : w.relations("endpoints") )
+					{
+						if( t == null || t.a == null || !t.a.<uniqorn.Endpoint.Type>cast().matches(method, path.substring(p.length())) ) continue;
+						
+						uniqorn.Endpoint.Type e = t.a.cast();
+						if( e.counter().incrementAndGet() > limit )
+							throw new HttpException(429, "Call rate limit exceeded");
+						
+						Api a = e.api();
+						if( a == null ) throw new HttpException(404); // race condition
+						Endpoint.Rest.Type r = a.api();
+						if( r == null ) throw new HttpException(404); // race condition
+						
+						return r.process(request);
+					}
 				}
+				throw new HttpException(404);
 			}
-			throw new HttpException(404);
+			catch(Exception e)
+			{
+				Manager.of(Logger.class).log(Logger.FINER, Api.class, e);
+				throw e;
+			}
 		}
 	}
 	

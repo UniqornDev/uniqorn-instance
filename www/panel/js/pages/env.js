@@ -2,7 +2,7 @@
 let ae = globalThis.ae;
 var x = new Promise((ok, nok) =>
 {
-	ae.require('Page', 'Node', 'Ajax', 'Translator', 'Notify', 'Modal', 'page.env.css', 'ext/prism.js', 'ext/prism.css').then(([Page, Node, Ajax, Translator, Notify, Modal]) =>
+	ae.require('Page', 'Node', 'Ajax', 'Translator', 'Notify', 'Modal', 'page.env.css').then(([Page, Node, Ajax, Translator, Notify, Modal]) =>
 	{
 		var page = new Page();
 		Object.assign(page, 
