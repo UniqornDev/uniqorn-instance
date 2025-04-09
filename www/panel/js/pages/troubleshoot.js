@@ -38,7 +38,7 @@ var x = new Promise((ok, nok) =>
 			{
 				var self = this;
 				
-				this.dom.append(
+				Node.append(this.div, [
 					ae.userlevel == 'manager' ? Node.div({className: 'action'},
 					[
 						Node.button({className: 'raised', click: (e) => { e.preventDefault(); self.reboot(); }}, [
@@ -93,7 +93,7 @@ var x = new Promise((ok, nok) =>
 						Node.p(Translator.get('troubleshoot.debug.explain')),
 						Node.ol({id: 'debug_entries'})
 					])
-				);
+				]);
 			},
 			
 			codeLog: function()

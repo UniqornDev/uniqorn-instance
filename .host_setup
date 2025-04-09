@@ -1,0 +1,60 @@
+apt-get update
+apt-get install ca-certificates curl
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+apt-get update
+apt install -y docker-ce docker-ce-cli containerd.io
+echo '{ "userns-remap": "default", "live-restore": true }' | tee /etc/docker/daemon.json > /dev/null
+systemctl daemon-reexec
+systemctl restart docker
+dockerd --version
+docker pull debian:latest
+
+# todo : cert for dockerd
+
+docker run -d \
+  --restart=always \
+  --name uniqorn-u1 \
+  -v /opt/uniqorn:/opt/uniqorn:ro \
+  -v /storage/u1:/storage:rw \
+  -p 1080:1080 \
+  -p 1443:1443 \
+  -e AEONICS_PLUGIN_PATH=/opt/uniqorn/plugins \
+  -e AEONICS_MANAGER_LOGGER_LEVEL=700 \
+  -e AEONICS_SECURITY_ADMIN_HASH=a3728acde4887e69295aead9f740d5ed10a831812a7f77b1312943b1ebc84289 \
+  -e AEONICS_SECURITY_ADMIN_SALT=d5c5b2a672f4439ba5277c3e2a6c4d098105951959c8bed2ab1a82049b41a0fe \
+  -e AEONICS_HARDWARE_CPU_LIMIT=4 \
+  -e AEONICS_MANAGER_SECURITY_OIDCISSUER=https://r-cube.be:1443 \
+  -e AEONICS_MANAGER_SNAPSHOT_PATH=/storage/snapshots \
+  -e AEONICS_MANAGER_MONITOR_PATH=/storage/monitor \
+  -e AEONICS_MANAGER_SECURITY_PATH=/storage/security \
+  -e AEONICS_HTTP_HTTPSERVER_DEFAULTHTTPPORT=1080 \
+  -e AEONICS_HTTP_HTTPSERVER_DEFAULTHTTPSPORT=1443 \
+  -e AEONICS_HTTP_HTTPSERVER_DEFAULTWEBROOT=/opt/uniqorn/www \
+  -e AEONICS_ENTITY_SECURITY_MULTIFACTOR_TOTP_OTPISSUER=Uniqorn \
+  -e AEONICS_OIDC_RP_RELYINGPARTY_NAME=Uniqorn \
+  -e UNIQORN_API_STORAGE=/storage/storage \
+  -e UNIQORN_API_WORKSPACES=5 \
+  -e UNIQORN_API_ENDPOINTS=5 \
+  -e UNIQORN_API_VERSIONS=5 \
+  -e UNIQORN_API_CONSUMERS=5 \
+  -e UNIQORN_API_USERS=5 \
+  -e UNIQORN_API_RATE=500 \
+  -e UNIQORN_API_ENV=50 \
+  -e UNIQORN_API_PLAN=trial \
+  -e UNIQORN_API_PREFIX=/upi \
+  -e UNIQORN_API_GROUPS=50 \
+  -e UNIQORN_API_ROLES=50 \
+  -e UNIQORN_API_STORAGES=5 \
+  -e UNIQORN_API_DATABASES=5 \
+  --workdir /opt/uniqorn \
+  --user 2000:2000 \
+  --icc=false \
+  --userns-remap=default \
+  --read-only \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  debian \
+  /opt/uniqorn/jre/bin/java --module-path ae.jar --module aeonics.boot/aeonics.Boot

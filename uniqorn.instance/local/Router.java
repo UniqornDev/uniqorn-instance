@@ -47,7 +47,7 @@ public class Router extends Endpoint
 				method,
 				prefix(),
 				path,
-				request.connection().clientIp(),
+				request.connection() == null ? "0.0.0.0" : request.connection().clientIp(),
 				Objects.requireNonNullElse(Registry.of(User.class).get(request.user()), User.ANONYMOUS).name());
 			
 			try
@@ -58,7 +58,7 @@ public class Router extends Endpoint
 					if( !path.startsWith(p) ) continue;
 					for( Tuple<Entity, Data> t : w.relations("endpoints") )
 					{
-						if( t == null || t.a == null || !t.a.<uniqorn.Endpoint.Type>cast().matches(method, path.substring(p.length())) ) continue;
+						if( t == null || t.a == null || !t.a.valueOf("enabled").asBool() || !t.a.<uniqorn.Endpoint.Type>cast().matches(method, path.substring(p.length())) ) continue;
 						
 						uniqorn.Endpoint.Type e = t.a.cast();
 						if( e.counter().incrementAndGet() > limit )

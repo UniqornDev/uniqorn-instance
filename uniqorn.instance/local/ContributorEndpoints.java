@@ -314,12 +314,7 @@ public class ContributorEndpoints
 					// normalize prefix
 					String prefix = data.asString("prefix");
 					if( prefix.length() > 0 )
-					{
-						if( !prefix.startsWith("/") ) prefix = "/" + prefix;
-						prefix.replaceAll("/+", "/");
-						if( prefix.endsWith("/") ) prefix = prefix.substring(0, prefix.length()-1);
-						prefix = Paths.get(prefix).normalize().toString().replace('\\', '/');
-					}
+						prefix = "/" + Storage.normalize(prefix).replace('\\', '/');
 					
 					Workspace.Type workspace = Factory.of(Workspace.class).get(Workspace.class).create()
 						.name(data.asString("name"))
@@ -373,12 +368,8 @@ public class ContributorEndpoints
 					// normalize prefix
 					String prefix = data.asString("prefix");
 					if( prefix.length() > 0 )
-					{
-						if( !prefix.startsWith("/") ) prefix = "/" + prefix;
-						prefix.replaceAll("/+", "/");
-						if( prefix.endsWith("/") ) prefix = prefix.substring(0, prefix.length()-1);
-						prefix = Paths.get(prefix).normalize().toString().replace('\\', '/');
-					}
+						prefix = "/" + Storage.normalize(prefix).replace('\\', '/');
+					
 					workspace.parameter("prefix", prefix);
 					
 					return Data.map().put("success", true);

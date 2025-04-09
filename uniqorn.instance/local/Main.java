@@ -137,13 +137,18 @@ public class Main extends Plugin
 	{
 		ContributorEndpoints.register();
 		ManagerEndpoints.register();
+		ModelContextProtocol.register();
 		
-		// reset call counters
+		// every 1h
 		Manager.of(Scheduler.class).every((now) -> 
 		{
+			// reset call counters
 			for( Endpoint.Type e : Registry.of(Endpoint.class) )
 				if( e != null )
 					e.counter().set(0);
+			
+			// create snapshot
+			Manager.of(Snapshot.class).create("auto");
 		}, 1, ChronoUnit.HOURS);
 		
 		setDefaultsIfNeeded();
