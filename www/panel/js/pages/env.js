@@ -88,7 +88,7 @@ var x = new Promise((ok, nok) =>
 							Node.input({type: 'text', name: 'name', placeholder: Translator.get('env.name')})
 						],
 						Node.textarea({name: 'description', value: description||'', placeholder: Translator.get('env.description')}),
-						Node.input({type: 'text', name: 'value', value: value||'', placeholder: Translator.get('env.value')})
+						Node.textarea({name: 'value', value: value||'', placeholder: Translator.get('env.value')})
 					])
 				).then((form) =>
 				{

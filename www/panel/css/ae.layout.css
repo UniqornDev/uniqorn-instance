@@ -55,7 +55,7 @@ nav aside {
 .small_action { text-align: right; color: var(--pink); display: inline-block; margin: 0 1rem; vertical-align: middle; }
 .small_action span { width: 1.5rem; margin-right: 0.5rem; line-height: 1.5rem; display: inline-block; text-align: center; cursor: pointer;  border-radius: 1.5rem; }
 .small_action span:hover { background-color: #d75d7f30; }
-.codewrapper { width: 80ch; overflow: auto; }
+.codewrapper { width: 80ch; overflow: auto; max-height: 70vh; }
 
 div.detail p { margin: 0.5rem 0; font-size: 0.9rem; }
 div.detail .title { width: 15rem; display: inline-block; }

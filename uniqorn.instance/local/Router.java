@@ -69,6 +69,7 @@ public class Router extends Endpoint
 						Endpoint.Rest.Type r = a.api();
 						if( r == null ) throw new HttpException(404); // race condition
 						
+						request.content().put("path", path.substring(p.length()));
 						return r.process(request);
 					}
 				}

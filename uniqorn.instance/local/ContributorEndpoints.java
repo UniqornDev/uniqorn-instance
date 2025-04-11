@@ -1017,7 +1017,7 @@ public class ContributorEndpoints
 				.summary("Value")
 				.description("The environment parameter value")
 				.format(Parameter.Format.TEXT)
-				.max(512))
+				.max(20000))
 			.create()
 			.<Rest.Type>cast()
 			.process(data ->

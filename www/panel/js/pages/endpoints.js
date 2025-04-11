@@ -70,7 +70,7 @@ var x = new Promise((ok, nok) =>
 								}, dataset: {tooltip: Translator.get('endpoints.endpoint.add')}}, 'webhook')
 							])
 						]),
-						Node.ol(w.endpoints.sort((a, b) => { return a.path.toUpperCase() > b.path.toUpperCase() ? 1 : -1; }).map(e => Node.li(
+						Node.ol(w.endpoints.sort((a, b) => { return (a.path||'').toUpperCase() > (b.path||'').toUpperCase() ? 1 : -1; }).map(e => Node.li(
 						{
 							dataset: {id: e.id}
 						},
