@@ -61,7 +61,7 @@ var x = new Promise((ok, nok) =>
 							Node.li({className: 'external', click: function(e)
 							{
 								e.stopImmediatePropagation();
-								window.open('https://uniqorn.dev/doc', '_blank').focus();
+								window.open('https://uniqorn.dev/javadoc', '_blank').focus();
 							}}, [
 								Node.span({className: 'icon'}, 'open_in_new'), 
 								Translator.get('menu.javadoc')
