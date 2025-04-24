@@ -86,3 +86,19 @@ ol.short, li.short { max-height: 50vh; overflow: auto; }
 	z-index: 10; white-space: nowrap; font-family: body; 
 }
 [data-tooltip]:hover::after { content: attr(data-tooltip); }
+
+div.search {
+	white-space: nowrap; padding: 0.5rem 0 2rem 0.5rem;
+}
+div.search input { text-align: left; width: 8rem; display: inline-block;
+	color: var(--black); border-bottom-color: var(--blue);
+	background: transparent;
+	margin: 0;
+	padding: 0.5rem;
+	font-size: 0.9rem;
+}
+div.search .icon {
+	display: inline-block; padding: 0.5rem;
+	font-family: material !important; font-feature-settings: "liga" 1; font-size: 1.4rem; line-height: 1rem; vertical-align: bottom; text-transform: none !important; color: var(--blue);
+	border-bottom: 2px solid var(--blue);
+}

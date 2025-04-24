@@ -39,6 +39,13 @@ var x = new Promise((ok, nok) =>
 								Node.span({className: 'icon'}, 'folder'), 
 								Node.span(Translator.get('endpoints.workspace.add'))])
 						]),
+						Node.div({className: 'search'}, [
+							Node.input({type: 'search', input: function()
+							{
+								self.filter(this.value);
+							}}),
+							Node.span({className: 'icon'}, 'search')
+						]),
 						Node.div([
 							Translator.get('endpoints.prefix.global'),
 							Node.span({className: 'prefix g'}, ae.safeHtml(result.response.prefix))
@@ -80,7 +87,7 @@ var x = new Promise((ok, nok) =>
 								(!e.enabled?' disabled':'')},
 							[
 								Node.span({className: 'method ' + (['GET', 'POST', 'PUT', 'DELETE', 'PATCH'].includes(e.method)?e.method:'OTHER')}, e.method||'-'),
-								ae.safeHtml(result.response.prefix + w.prefix + (e.path ? e.path : Translator.get('endpoints.nopath'))),
+								Node.span(ae.safeHtml(result.response.prefix + w.prefix + (e.path ? e.path : Translator.get('endpoints.nopath')))),
 								Node.div({className: 'small_action'},
 								[
 									Node.span({className: 'icon', click: function()
@@ -110,6 +117,44 @@ var x = new Promise((ok, nok) =>
 				{
 					Notify.error(Translator.get('fetch.error'));
 					self.dom.classList.remove('wait');
+				});
+			},
+			
+			filter: function(value)
+			{
+				var words = (value||'').split(/\s+/g).map(w => new RegExp((w||'').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+				
+				[].slice.call(this.dom.querySelectorAll('section li')).forEach(p =>
+				{
+					if( !value || value.length == 0 ) { p.classList.remove('hidden'); return; }
+					
+					for (var w = 0; w < words.length; w++)
+					{
+						if( !words[w].test(p.firstChild.firstChild.textContent) && !words[w].test(p.firstChild.children[1].textContent) )
+						{
+							p.classList.add('hidden');
+							return;
+						}
+					}
+					p.classList.remove('hidden');
+				});
+				
+				// hide main section if empty
+				[].slice.call(this.dom.querySelectorAll('section')).forEach(div => 
+				{
+					if( !value || value.length == 0 )
+					{
+						div.classList.remove('hidden');
+					}
+					else if( !!div.querySelector('li:not(.hidden)') )
+					{
+						div.classList.add('open')
+						div.classList.remove('hidden')
+					}
+					else
+					{
+						div.classList.add('hidden')
+					}
 				});
 			},
 			

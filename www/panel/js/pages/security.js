@@ -43,6 +43,13 @@ var x = new Promise((ok, nok) =>
 					
 					Node.append(this.dom,
 					[
+						Node.div({className: 'search'}, [
+							Node.input({type: 'search', input: function()
+							{
+								self.filter(this.value);
+							}}),
+							Node.span({className: 'icon'}, 'search')
+						]),
 						Node.section(
 						[
 							Node.h2([
@@ -57,7 +64,7 @@ var x = new Promise((ok, nok) =>
 							Node.ol(roles.map(r => Node.li({className: 'card', dataset: {id: r.id}, click: function() { self.showRole(this.dataset.id); }}, 
 							[
 								Node.span({className: 'icon'}, 'badge'),
-								ae.safeHtml(r.name)
+								Node.span(ae.safeHtml(r.name))
 							])))
 						]),
 						
@@ -75,7 +82,7 @@ var x = new Promise((ok, nok) =>
 							Node.ol(groups.map(g => Node.li({className: 'card', dataset: {id: g.id}, click: function() { self.showGroup(this.dataset.id); }}, 
 							[
 								Node.span({className: 'icon'}, 'group'),
-								ae.safeHtml(g.name)
+								Node.span(ae.safeHtml(g.name))
 							])))
 						]),
 						
@@ -93,7 +100,7 @@ var x = new Promise((ok, nok) =>
 							Node.ol(consumers.map(u => Node.li({className: 'card', dataset: {id: u.id}, click: function() { self.showConsumer(this.dataset.id); }}, 
 							[
 								Node.span({className: 'icon'}, 'frame_person'),
-								ae.safeHtml(u.name)
+								Node.span(ae.safeHtml(u.name))
 							])))
 						]),
 						
@@ -113,7 +120,7 @@ var x = new Promise((ok, nok) =>
 									u.type == 'contributor' ? 'identity_platform' : 
 									u.type == 'manager' ? 'shield_person' : 'person'
 									),
-								ae.safeHtml(u.name)
+								Node.span(ae.safeHtml(u.name))
 							])))
 						]) : null,
 					]);
@@ -123,6 +130,44 @@ var x = new Promise((ok, nok) =>
 				{
 					Notify.error(Translator.get('fetch.error'));
 					self.dom.classList.remove('wait');
+				});
+			},
+			
+			filter: function(value)
+			{
+				var words = (value||'').split(/\s+/g).map(w => new RegExp((w||'').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+				
+				[].slice.call(this.dom.querySelectorAll('section li')).forEach(p =>
+				{
+					if( !value || value.length == 0 ) { p.classList.remove('hidden'); return; }
+					
+					for (var w = 0; w < words.length; w++)
+					{
+						if( !words[w].test(p.lastChild.textContent) )
+						{
+							p.classList.add('hidden');
+							return;
+						}
+					}
+					p.classList.remove('hidden');
+				});
+				
+				// hide main section if empty
+				[].slice.call(this.dom.querySelectorAll('section')).forEach(div => 
+				{
+					if( !value || value.length == 0 )
+					{
+						div.classList.remove('hidden');
+					}
+					else if( !!div.querySelector('li:not(.hidden)') )
+					{
+						div.classList.add('open')
+						div.classList.remove('hidden')
+					}
+					else
+					{
+						div.classList.add('hidden')
+					}
 				});
 			},
 			

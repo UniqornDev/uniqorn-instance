@@ -35,13 +35,13 @@ public class Router extends Endpoint
 		public boolean matchesMethod(String method) { return true; }
 		
 		@Override
-		public boolean matchesPath(String url) { return url != null && url.startsWith(prefix); }
+		public boolean matchesPath(String url) { return url != null && url.startsWith(prefix() + "/"); }
 		
 		@Override
 		public Data process(Message request) throws Exception
 		{
 			String method = request.content().asString("method");
-			String path = request.content().asString("path").substring(prefix.length());
+			String path = request.content().asString("path").substring(prefix().length());
 
 			Manager.of(Logger.class).log(Logger.FINER, Api.class, "{} {}{} call from {} authenticated as {}", 
 				method,
@@ -54,11 +54,12 @@ public class Router extends Endpoint
 			{
 				for( Workspace.Type w : Registry.of(Workspace.class) )
 				{
-					String p = w.valueOf("prefix").asString();
-					if( !path.startsWith(p) ) continue;
+					String workspacePrefix = w.valueOf("prefix").asString();
+					if( !path.startsWith(workspacePrefix + "/") ) continue;
 					for( Tuple<Entity, Data> t : w.relations("endpoints") )
 					{
-						if( t == null || t.a == null || !t.a.valueOf("enabled").asBool() || !t.a.<uniqorn.Endpoint.Type>cast().matches(method, path.substring(p.length())) ) continue;
+						if( t == null || t.a == null || !t.a.valueOf("enabled").asBool() ) continue;
+						if( !t.a.<uniqorn.Endpoint.Type>cast().matches(method, path.substring(workspacePrefix.length())) ) continue;
 						
 						uniqorn.Endpoint.Type e = t.a.cast();
 						if( e.counter().incrementAndGet() > limit )
@@ -69,7 +70,7 @@ public class Router extends Endpoint
 						Endpoint.Rest.Type r = a.api();
 						if( r == null ) throw new HttpException(404); // race condition
 						
-						request.content().put("path", path.substring(p.length()));
+						request.content().put("path", path.substring(workspacePrefix.length()));
 						return r.process(request);
 					}
 				}

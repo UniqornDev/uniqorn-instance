@@ -63,7 +63,7 @@ var x = new Promise((ok, nok) =>
 						self.code_epoch = response.response.epoch;
 						self.code_ttl = response.response.ttl;
 						self.updateCodeValidity();
-//						setInterval(() => { self.updateCodeValidity(); }, 1000);
+						setInterval(() => { self.updateCodeValidity(); }, 1000);
 						
 						self.rule_1();
 					}, (error) =>

@@ -49,7 +49,15 @@ var x = new Promise((ok, nok) =>
 					self.databases = databases;
 					self.storages = storages;
 					
-					self.dom.append(Node.section(
+					self.dom.append(
+						Node.div({className: 'search'}, [
+							Node.input({type: 'search', input: function()
+							{
+								self.filter(this.value);
+							}}),
+							Node.span({className: 'icon'}, 'search')
+						]),
+						Node.section(
 						[
 							Node.h2([
 								Translator.get('storage.file.title'),
@@ -63,7 +71,7 @@ var x = new Promise((ok, nok) =>
 								storages.map(c => Node.li({className: 'card', dataset: {id: c.id}, click: function() { self.showStorage(this.dataset.id); }},
 								[
 									Node.span({className: 'icon'}, 'folder'),
-									ae.safeHtml(c.name)
+									Node.span(ae.safeHtml(c.name))
 								]))
 							)
 						]),
@@ -81,7 +89,7 @@ var x = new Promise((ok, nok) =>
 								databases.map(c => Node.li({className: 'card', dataset: {id: c.id}, click: function() { self.showDatabase(this.dataset.id); }},
 								[
 									Node.span({className: 'icon'}, 'database'),
-									ae.safeHtml(c.name)
+									Node.span(ae.safeHtml(c.name))
 								]))
 							)
 						])
@@ -92,6 +100,44 @@ var x = new Promise((ok, nok) =>
 				{
 					Notify.error(Translator.get('fetch.error'));
 					self.dom.classList.remove('wait');
+				});
+			},
+			
+			filter: function(value)
+			{
+				var words = (value||'').split(/\s+/g).map(w => new RegExp((w||'').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+				
+				[].slice.call(this.dom.querySelectorAll('section li')).forEach(p =>
+				{
+					if( !value || value.length == 0 ) { p.classList.remove('hidden'); return; }
+					
+					for (var w = 0; w < words.length; w++)
+					{
+						if( !words[w].test(p.lastChild.textContent) )
+						{
+							p.classList.add('hidden');
+							return;
+						}
+					}
+					p.classList.remove('hidden');
+				});
+				
+				// hide main section if empty
+				[].slice.call(this.dom.querySelectorAll('section')).forEach(div => 
+				{
+					if( !value || value.length == 0 )
+					{
+						div.classList.remove('hidden');
+					}
+					else if( !!div.querySelector('li:not(.hidden)') )
+					{
+						div.classList.add('open')
+						div.classList.remove('hidden')
+					}
+					else
+					{
+						div.classList.add('hidden')
+					}
 				});
 			},
 			

@@ -32,7 +32,15 @@ var x = new Promise((ok, nok) =>
 				{
 					var list = result.response.sort((a, b) => { return a.name > b.name ? 1 : -1; });
 					
-					self.dom.append(Node.section(
+					self.dom.append(
+						Node.div({className: 'search'}, [
+							Node.input({type: 'search', input: function()
+							{
+								self.filter(this.value);
+							}}),
+							Node.span({className: 'icon'}, 'search')
+						]),
+						Node.section(
 						[
 							Node.h2([
 								Translator.get('env.title'),
@@ -47,7 +55,7 @@ var x = new Promise((ok, nok) =>
 								list.map(c => Node.li({dataset: {name: c.name, value: c.value, description: c.description}},
 								[
 									Node.h3([
-										ae.safeHtml(c.name),
+										Node.span(ae.safeHtml(c.name)),
 										Node.div({className: 'small_action'},
 										[
 											Node.span({className: 'icon', click: function()
@@ -72,6 +80,26 @@ var x = new Promise((ok, nok) =>
 				{
 					Notify.error(Translator.get('fetch.error'));
 					self.dom.classList.remove('wait');
+				});
+			},
+			
+			filter: function(value)
+			{
+				var words = (value||'').split(/\s+/g).map(w => new RegExp((w||'').replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'i'));
+				
+				[].slice.call(this.dom.querySelectorAll('section li')).forEach(p =>
+				{
+					if( !value || value.length == 0 ) { p.classList.remove('hidden'); return; }
+					
+					for (var w = 0; w < words.length; w++)
+					{
+						if( !words[w].test(p.firstChild.firstChild.textContent) )
+						{
+							p.classList.add('hidden');
+							return;
+						}
+					}
+					p.classList.remove('hidden');
 				});
 			},
 			
