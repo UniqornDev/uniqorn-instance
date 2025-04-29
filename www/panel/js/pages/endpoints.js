@@ -336,6 +336,23 @@ var x = new Promise((ok, nok) =>
 						Node.button({click: function(e) { e.preventDefault(); m.ok(); }}, Translator.get('cancel')),
 					])
 				]);
+				
+				m.dom.addEventListener('dragover', function(event) { event.preventDefault(); });
+				m.dom.addEventListener('drop', function(event) {
+					event.preventDefault();
+					var file = event.dataTransfer.files[0];
+					if( file && file.name.endsWith('.java') )
+					{
+						var reader = new FileReader();
+						reader.onload = function(e)
+						{
+							ci.setAttribute("value", e.target.result||'');
+						};
+						reader.readAsText(file);
+					}
+					else
+						Notify.error(Translator.get('code.file.invalid'));
+				});
 			},
 		});
 		

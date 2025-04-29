@@ -364,7 +364,7 @@ public class ManagerEndpoints
 					else if( data.asString("type").equals("contributor") )
 						user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_CONTRIBUTOR)).addRelation("groups", Group.USERS);
 					else if( data.asString("type").equals("manager") )
-						user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_MANAGER)).addRelation("groups", Group.USERS);;
+						user.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_MANAGER)).addRelation("groups", Group.USERS);
 					
 					return Data.map().put("id", user.id());
 				}

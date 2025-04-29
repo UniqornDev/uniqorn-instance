@@ -631,7 +631,8 @@ var x = new Promise((ok, nok) =>
 							Node.p(Translator.get('security.consumer.groups.available')),
 							Node.ol({click: function(e)
 							{
-								if( e.target.nodeName != 'LI' ) return;
+								const li = e.target.closest('li');
+								if (!li || !this.contains(li)) return;
 								this.parentNode.nextSibling.lastChild.append(e.target);
 							}}, Array.from(list).filter(n => !groups.some(g => g.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						]),
@@ -639,7 +640,8 @@ var x = new Promise((ok, nok) =>
 							Node.p(Translator.get('security.consumer.groups.selected')),
 							Node.ol({click: function(e)
 							{
-								if( e.target.nodeName != 'LI' ) return;
+								const li = e.target.closest('li');
+								if (!li || !this.contains(li)) return;
 								this.parentNode.previousSibling.lastChild.append(e.target);
 							}}, Array.from(list).filter(n => groups.some(g => g.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						])
@@ -687,7 +689,8 @@ var x = new Promise((ok, nok) =>
 							Node.p(Translator.get('security.consumer.roles.available')),
 							Node.ol({click: function(e)
 							{
-								if( e.target.nodeName != 'LI' ) return;
+								const li = e.target.closest('li');
+								if (!li || !this.contains(li)) return;
 								this.parentNode.nextSibling.lastChild.append(e.target);
 							}}, Array.from(list).filter(n => !roles.some(r => r.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						]),
@@ -695,7 +698,8 @@ var x = new Promise((ok, nok) =>
 							Node.p(Translator.get('security.consumer.roles.selected')),
 							Node.ol({click: function(e)
 							{
-								if( e.target.nodeName != 'LI' ) return;
+								const li = e.target.closest('li');
+								if (!li || !this.contains(li)) return;
 								this.parentNode.previousSibling.lastChild.append(e.target);
 							}}, Array.from(list).filter(n => roles.some(r => r.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						])
