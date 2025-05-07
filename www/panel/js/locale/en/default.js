@@ -29,6 +29,8 @@ export default {
 	
 	'code': "Code",
 	'code.sample': "Code Sample",
+	'code.doc': "&gt; Related documentation page",
+	'code.javadoc': "&gt; Related Javadoc page",
 	'code.file.invalid': "Invalid code file",
 	'code.security.role': "You can control access to your endpoints by checking the user's role. Grant or deny access based on <em>role name</em>, and combine them with other conditions if needed.",
 	'code.security.group': "You can control access to your endpoints by checking the user's group. Grant or deny access based on <em>group name</em>, and combine them with other conditions if needed.",

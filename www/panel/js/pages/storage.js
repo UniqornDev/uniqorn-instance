@@ -297,7 +297,9 @@ var x = new Promise((ok, nok) =>
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/download", "GET")'
 						+ '\n\t.process(data -&gt; {\n\t\t'
 						+ 'Storage.Type store = Api.storage("my_content"); // get our storage\n\t\t'
-						+ 'return store.get("/path/to/file"); // fetch a file\n\t});'))
+						+ 'return store.get("/path/to/file"); // fetch a file\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#howto-storage", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#storage", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));
@@ -501,7 +503,9 @@ var x = new Promise((ok, nok) =>
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/query", "GET")'
 						+ '\n\t.process(data -&gt; {\n\t\t'
 						+ 'Database.Type db = Api.database("my_db"); // get our database\n\t\t'
-						+ 'return db.query("SELECT * FROM table"); // execute query\n\t});'))
+						+ 'return db.query("SELECT * FROM table"); // execute query\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#howto-database", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#database", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));

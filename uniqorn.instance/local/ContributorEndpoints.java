@@ -230,6 +230,8 @@ public class ContributorEndpoints
 			{
 				if( !user.hasRole(Constants.ROLE_CONTRIBUTOR) && !user.hasRole(Constants.ROLE_MANAGER) )
 					throw new HttpException(403);
+				if( Manager.of(Config.class).get(Api.class, "plan").asString().equals(Constants.PLAN_TRIAL) )
+					throw new HttpException(429, "Not available in current plan");
 				
 				data.put("subscribe", "10000000-1500000000000000")
 					.put("output", "data")
@@ -263,6 +265,8 @@ public class ContributorEndpoints
 			{
 				if( !user.hasRole(Constants.ROLE_CONTRIBUTOR) && !user.hasRole(Constants.ROLE_MANAGER) )
 					throw new HttpException(403);
+				if( Manager.of(Config.class).get(Api.class, "plan").asString().equals(Constants.PLAN_TRIAL) )
+					throw new HttpException(429, "Not available in current plan");
 				
 				data.put("subscribe", "10000000-1400000000000000")
 					.put("output", "data")
@@ -704,7 +708,7 @@ public class ContributorEndpoints
 						.put("summary", null)
 						.put("description", null)
 						.put("returns", null)
-						.put("parameters", Data.list());
+						.put("parameters", Data.map());
 				}
 				else
 				{
@@ -714,7 +718,7 @@ public class ContributorEndpoints
 						.put("summary", a.apitemplate().summary())
 						.put("description", a.apitemplate().description())
 						.put("returns", a.apitemplate().returns())
-						.put("parameters", a.apitemplate().parameters().stream().map(p -> p.name()).collect(Collectors.toList()));
+						.put("parameters", a.apitemplate().parameters().stream().collect(Collectors.toMap(Parameter::name, p -> p.description() != null ? p.description() : "")));
 				}
 				
 				Data versions = Data.list();

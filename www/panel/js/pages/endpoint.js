@@ -78,9 +78,13 @@ var x = new Promise((ok, nok) =>
 								]),
 								Node.p([
 									Node.span({className: 'title'}, Translator.get('endpoint.parameters')),
-									Node.span({className: 'text'}, result.response.parameters.length > 0 ?
-										result.response.parameters.map(p => Node.span({className: 'tag'}, ae.safeHtml(p))) :
-										Translator.get('endpoint.no_parameters'))
+									Object.keys(result.response.parameters).length == 0 ? Translator.get('endpoint.no_parameters') :
+									Node.div(
+										Object.entries(result.response.parameters).map(([name, description]) => Node.p({className: 'param'}, [
+											Node.span({className: 'tag'}, ae.safeHtml(name)),
+											Node.span(ae.safeHtml(description)||Translator.get('endpoint.empty'))
+										]))
+									)
 								])
 							]))
 						]),
@@ -186,7 +190,9 @@ var x = new Promise((ok, nok) =>
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/test", "GET")\n\t.summary("Test")\n\t'
 						+ '.description("This endpoint is a simple test")\n\t'
 						+ '.returns("Always returns success: true")'
-						+ '\n\t.process(data -&gt; {\n\t\treturn JSON.object().put("success", true);\n\t});'))
+						+ '\n\t.process(data -&gt; {\n\t\treturn JSON.object().put("success", true);\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#start-code", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#api-description", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));

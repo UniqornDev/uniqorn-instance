@@ -104,7 +104,9 @@ var x = new Promise((ok, nok) =>
 					Node.p(Translator.get('code.log')),
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/test", "GET")'
 						+ '\n\t.process((data, user) -&gt; {\n\t\ttry {\n\t\t\tApi.log(500, "Start transaction for {}", user.name());\n\t\t\t...\n\t\t} catch(Exception e) {' 
-						+ '\n\t\t\tApi.log(900, e);\n\t});'))
+						+ '\n\t\t\tApi.log(900, e);\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#debug-log", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#api-log", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));
@@ -116,7 +118,9 @@ var x = new Promise((ok, nok) =>
 					Node.h2(Translator.get('code.sample')),
 					Node.p(Translator.get('code.debug')),
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/test", "GET")'
-						+ '\n\t.process(data -&gt; {\n\t\tApi.debug("checkpoint", data);\n\t\t...\n\t});'))
+						+ '\n\t.process(data -&gt; {\n\t\tApi.debug("checkpoint", data);\n\t\t...\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#debug-debug", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#api-debug", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));

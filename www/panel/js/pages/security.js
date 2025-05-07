@@ -295,7 +295,9 @@ var x = new Promise((ok, nok) =>
 					Node.h2(Translator.get('code.sample')),
 					Node.p(Translator.get('code.security.role')),
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/test", "GET")\n\t.allowRole("Viewer") // allow role\n\t.denyRole("Public") // deny role'
-						+ '\n\t.process((data, user) -&gt; {\n\t\tif (user.hasRole("Private")) // manual role check\n\t\t...\n\t});'))
+						+ '\n\t.process((data, user) -&gt; {\n\t\tif (user.hasRole("Private")) // manual role check\n\t\t...\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#auth-api", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#api-allow", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));
@@ -425,7 +427,9 @@ var x = new Promise((ok, nok) =>
 					Node.h2(Translator.get('code.sample')),
 					Node.p(Translator.get('code.security.group')),
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/test", "GET")\n\t.allowGroup("Alpha Team") // allow group\n\t.denyGroup("Beta Team") // deny group'
-						+ '\n\t.process((data, user) -&gt; {\n\t\tif (user.isMemberOf("Zeta Team")) // manual group check\n\t\t...\n\t});'))
+						+ '\n\t.process((data, user) -&gt; {\n\t\tif (user.isMemberOf("Zeta Team")) // manual group check\n\t\t...\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#auth-api", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#api-allow", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));
@@ -612,10 +616,12 @@ var x = new Promise((ok, nok) =>
 					Node.h2(Translator.get('code.sample')),
 					Node.p(Translator.get('code.security.user')),
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/test", "GET")\n\t.allowUser("Bob") // allow user\n\t.denyUser("Alice") // deny user'
-						+ '\n\t.process((data, user) -&gt; {\n\t\tif (user.name().equals("John Doe")) // manual user check\n\t\t...\n\t});'))
+						+ '\n\t.process((data, user) -&gt; {\n\t\tif (user.name().equals("John Doe")) // manual user check\n\t\t...\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#auth-api", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#api-allow", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
-				Prism.highlightElement(m.dom.querySelector('pre code'));
+				Prism.highlightElement(m.dom.querySelector('code'));
 			},
 			
 			editGroups: function(id, groups, m)
@@ -633,7 +639,7 @@ var x = new Promise((ok, nok) =>
 							{
 								const li = e.target.closest('li');
 								if (!li || !this.contains(li)) return;
-								this.parentNode.nextSibling.lastChild.append(e.target);
+								this.parentNode.nextSibling.lastChild.append(li);
 							}}, Array.from(list).filter(n => !groups.some(g => g.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						]),
 						Node.div([
@@ -642,7 +648,7 @@ var x = new Promise((ok, nok) =>
 							{
 								const li = e.target.closest('li');
 								if (!li || !this.contains(li)) return;
-								this.parentNode.previousSibling.lastChild.append(e.target);
+								this.parentNode.previousSibling.lastChild.append(li);
 							}}, Array.from(list).filter(n => groups.some(g => g.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						])
 					]),
@@ -691,7 +697,7 @@ var x = new Promise((ok, nok) =>
 							{
 								const li = e.target.closest('li');
 								if (!li || !this.contains(li)) return;
-								this.parentNode.nextSibling.lastChild.append(e.target);
+								this.parentNode.nextSibling.lastChild.append(li);
 							}}, Array.from(list).filter(n => !roles.some(r => r.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						]),
 						Node.div([
@@ -700,7 +706,7 @@ var x = new Promise((ok, nok) =>
 							{
 								const li = e.target.closest('li');
 								if (!li || !this.contains(li)) return;
-								this.parentNode.previousSibling.lastChild.append(e.target);
+								this.parentNode.previousSibling.lastChild.append(li);
 							}}, Array.from(list).filter(n => roles.some(r => r.id == n.dataset.id)).map(n => n.cloneNode(true)))
 						])
 					]),

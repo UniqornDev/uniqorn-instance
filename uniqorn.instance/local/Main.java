@@ -244,7 +244,7 @@ public class Main extends Plugin
 				return Data.map().put("success", true).put("password", password);
 			})
 			.url("/init")
-			.method("PATCH")
+			.method("POST")
 			;
 	}
 	

@@ -146,7 +146,9 @@ var x = new Promise((ok, nok) =>
 					Node.h2(Translator.get('code.sample')),
 					Node.p(Translator.get('code.env')),
 					Node.pre(Node.code({className: 'language-java'}, 'new Api("/api/test", "GET")'
-						+ '\n\t.process((data, user) -&gt; {\n\t\tString apiKey = Api.env("api_key").asString();\n\t\t...\n\t});'))
+						+ '\n\t.process((data, user) -&gt; {\n\t\tString apiKey = Api.env("api_key").asString();\n\t\t...\n\t});')),
+					Node.p(Node.a({href: "https://uniqorn.dev/doc#howto-env", target: "_blank"}, Translator.get('code.doc'))),
+					Node.p(Node.a({href: "https://uniqorn.dev/javadoc#api-env", target: "_blank"}, Translator.get('code.javadoc')))
 				]);
 				
 				Prism.highlightElement(m.dom.querySelector('code'));

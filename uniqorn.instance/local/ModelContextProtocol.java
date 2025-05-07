@@ -50,7 +50,7 @@ public class ModelContextProtocol
 		.<Rest.Type>cast()
 		.process((data, user, request) ->
 		{
-			Data rpc = Json.decode(request.content().asString("body"));
+			Data rpc = request.content().isMap("post") ? request.content().get("post") : Json.decode(request.content().asString("body"));
 			if( rpc.isList() )
 				return Data.map().put("jsonrpc", "2.0").put("id", null).put("error", Data.map().put("code", -32600).put("message", "Batch Requests Not Supported"));
 			if( !rpc.isMap() || !rpc.asString("jsonrpc").equals("2.0") )
@@ -124,20 +124,21 @@ public class ModelContextProtocol
 			{
 				if( e.a == null || !e.a.valueOf("enabled").asBool() ) continue;
 				Endpoint.Rest.Type r = e.a.<uniqorn.Endpoint.Type>cast().api() != null ? e.a.<uniqorn.Endpoint.Type>cast().api().api() : null;
-				if( r == null ) continue;
+				Endpoint.Template t = e.a.<uniqorn.Endpoint.Type>cast().api() != null ? e.a.<uniqorn.Endpoint.Type>cast().api().apitemplate() : null;
+				if( r == null || t == null ) continue;
 				
 				Data parameters = Data.map();
 				Data required = Data.list();
 				
-				for( Map.Entry<String, Tuple<Data, Parameter>> p : r.parameters().entrySet() )
+				for( Parameter p : t.parameters() )
 				{
-					parameters.put(p.getKey(), Data.map()
-						.put("description", p.getValue().b.description()));
+					parameters.put(p.name(), Data.map()
+						.put("description", p.description()));
 				}
 				
 				list.add(Data.map()
-					.put("name", r.method() + " " + w.valueOf("prefix") + r.url())
-					.put("description", r.template().summary() + "\n" + r.template().description() + "\n" + r.template().<Endpoint.Template>cast().returns())
+					.put("name", r.method() + " " + w.valueOf("prefix").asString() + r.url())
+					.put("description", "## Summary: " + t.summary() + "\n## Description: " + t.description() + "\n## Return value: " + t.returns())
 					.put("inputSchema", Data.map()
 						.put("type", "object")
 						.put("properties", parameters)
