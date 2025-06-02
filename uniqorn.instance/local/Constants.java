@@ -21,7 +21,7 @@ public class Constants
 	
 	static final Map<String, Class<? extends Storage>> STORAGES = Map.of(
 		"gpc", Storage.class,
-		"aws", Storage.class,
+		"aws", uniqorn.storage.AWS.class,
 		"ms", Storage.class,
 		"s3", Storage.class,
 		"file", uniqorn.storage.File.class

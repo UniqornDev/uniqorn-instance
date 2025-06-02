@@ -6,20 +6,14 @@ import aeonics.Plugin;
 import aeonics.data.Data;
 import aeonics.entity.Registry;
 import aeonics.entity.Storage;
-import aeonics.entity.security.Group;
 import aeonics.entity.security.Multifactor;
 import aeonics.entity.security.Policy;
-import aeonics.entity.security.Provider;
 import aeonics.entity.security.Role;
 import aeonics.entity.security.Rule;
-import aeonics.entity.security.User;
-import aeonics.http.HttpException;
-import aeonics.http.Endpoint.Rest;
 import aeonics.manager.*;
 import aeonics.manager.Lifecycle.Phase;
 import aeonics.template.Factory;
 import aeonics.template.Parameter;
-import aeonics.util.StringUtils;
 import aeonics.util.Snapshotable.SnapshotMode;
 import uniqorn.Api;
 import uniqorn.Endpoint;
@@ -42,6 +36,16 @@ public class Main extends Plugin
 	
 		Config config = Manager.of(Config.class);
 		
+		config.declare(Api.class, new Parameter("uid")
+			.summary("Instance id")
+			.description("The internal instance id.")
+			.format(Parameter.Format.TEXT)
+			.defaultValue(""));
+		config.declare(Api.class, new Parameter("key")
+			.summary("Instance key")
+			.description("The internal instance key.")
+			.format(Parameter.Format.TEXT)
+			.defaultValue(""));
 		config.declare(Api.class, new Parameter("workspaces")
 			.summary("Maximum number of workspaces")
 			.description("The maximum number of workspaces allowed in this instance.")
@@ -170,82 +174,7 @@ public class Main extends Plugin
 		
 		setDefaultsIfNeeded();
 		
-		// create endpoint for default manager
-		new aeonics.http.Endpoint.Rest() { }
-			.template()
-			.summary("Initialize")
-			.description("This endpoint can be used to create the initial user account.")
-			.add(new Parameter("login")
-				.summary("Login")
-				.description("The user login name")
-				.format(Parameter.Format.TEXT)
-				.optional(false)
-				.min(3)
-				.max(50))
-			.add(new Parameter("name")
-				.summary("Display name")
-				.description("The user display name")
-				.format(Parameter.Format.TEXT)
-				.optional(false)
-				.max(100))
-			.add(new Parameter("auth")
-				.summary("Credentials")
-				.description("The authentication credentials for the admin user")
-				.format(Parameter.Format.TEXT)
-				.optional(false)
-				.max(100))
-			.add(new Parameter("mfa")
-				.summary("Multifactor")
-				.description("The multifactor check")
-				.format(Parameter.Format.TEXT)
-				.optional(false)
-				.max(100))
-			.create()
-			.<Rest.Type>cast()
-			.process((data, user) ->
-			{
-				for( User.Type u : Registry.of(User.class) )
-				{
-					if( u.hasRole(Constants.ROLE_MANAGER) )
-						throw new HttpException(400, "Already initialized");
-				}
-				
-				if( Registry.of(User.class).get(u -> u.name().equals(data.asString("login")) || u.login().equals(data.asString("login"))) != null )
-					throw new HttpException(400, "Duplicate user");
-				
-				Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
-				if( provider == null ) throw new HttpException(500, "Security provider unavailable");
-				
-				User.Type u = provider.authenticate(Data.map().put("username", "admin").put("password", data.asString("auth")));
-				if( u == null ) throw new HttpException(400, "Invalid credentials");
-				
-				boolean pass = false;
-				for( Multifactor.Type m : Registry.of(Multifactor.class) )
-				{
-					if( m.check(u, Data.map().put("otp", data.get("mfa"))) )
-					{
-						pass = true;
-						break;
-					}
-				}
-				if( !pass ) throw new HttpException(400, "Invalid multifactor confirmation");
-				
-				User.Type manager = Factory.of(User.class).get(User.class).create()
-					.name(data.asString("name"))
-					.parameter("login", data.asString("login"))
-					.addRelation("roles", Registry.of(Role.class).get(Constants.ROLE_MANAGER))
-					.addRelation("groups", Group.USERS)
-					.cast()
-					;
-				
-				String password = Manager.of(Security.class).randomHash();
-				provider.join(Data.map().put("password", password).put("username", manager.login()), manager);
-				
-				return Data.map().put("success", true).put("password", password);
-			})
-			.url("/init")
-			.method("POST")
-			;
+		AdminEndpoints.register();
 	}
 	
 	private void setDefaultsIfNeeded()

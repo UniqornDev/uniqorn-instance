@@ -1,11 +1,19 @@
 package local;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.stream.Stream;
 
 import aeonics.Boot;
 import aeonics.data.Data;
+import aeonics.entity.Database;
 import aeonics.entity.Entity;
 import aeonics.entity.Registry;
+import aeonics.entity.Step;
+import aeonics.entity.Step.Origin;
+import aeonics.entity.Storage;
 import aeonics.http.Endpoint;
 import aeonics.http.HttpException;
 import aeonics.http.Endpoint.Rest;
@@ -18,6 +26,8 @@ import aeonics.entity.security.*;
 import aeonics.template.Factory;
 import aeonics.template.Parameter;
 import aeonics.util.StringUtils;
+import aeonics.util.Http;
+import aeonics.util.Snapshotable.SnapshotMode;
 import aeonics.util.Tuples.Tuple;
 import uniqorn.Api;
 
@@ -76,7 +86,47 @@ public class ManagerEndpoints
 				return Data.map().put("success", true);
 			})
 			.url(ROOT + "/reboot")
-			.method("GET")
+			.method("POST")
+			;
+			
+		private static final Endpoint.Rest.Type destroy = new Endpoint.Rest() { }
+			.template()
+			.summary("Destroy instance")
+			.description("Completely and definitively destroys this instance and all local data.")
+			.add(new Parameter("mfa")
+				.summary("Multifactor confirmation")
+				.description("Multifactor confirmation")
+				.format(Parameter.Format.TEXT)
+				.optional(false)
+				.max(50))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, user) ->
+			{
+				boolean pass = false;
+				for( Multifactor.Type m : Registry.of(Multifactor.class) )
+				{
+					if( m.check(user, Data.map().put("otp", data.get("mfa"))) )
+					{
+						pass = true;
+						break;
+					}
+				}
+				if( !pass ) throw new HttpException(400, "Invalid multifactor confirmation");
+				
+				// prevent any further actions
+				Registry.of(User.class).clear();
+				Registry.of(uniqorn.Endpoint.class).clear();
+				
+				// call the manager to deprovision
+				Http.post("https://manager.uniqorn.dev/uapi/instance/destroy", Data.map()
+					.put("uid", Manager.of(Config.class).get(Api.class, "uid"))
+					.put("key", Manager.of(Config.class).get(Api.class, "key")), null, "DELETE");
+				
+				return Data.map().put("success", true);
+			})
+			.url(ROOT + "/destroy")
+			.method("POST")
 			;
 	}
 	

@@ -282,7 +282,7 @@ var x = new Promise((ok, nok) =>
 							}
 							
 							document.body.classList.add('wait');
-							Ajax.get('/api/manager/reboot', {data: {mfa: mfa}}).then(() =>
+							Ajax.post('/api/manager/reboot', {data: {mfa: mfa}}).then(() =>
 							{
 								var i = setInterval(() =>
 								{

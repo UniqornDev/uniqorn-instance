@@ -240,15 +240,17 @@ var x = new Promise((ok, nok) =>
 						]),
 						Node.fieldset([
 							Node.label(Translator.get('storage.file.type')),
-							Node.select({name: 'type'}, [
-								Node.option({value: 'file'}, "Filesystem")
+							Node.select({name: 'type', change: function() {
+								var d = this.parentNode.nextSibling;
+								while(d.firstChild) d.firstChild.remove();
+								Node.append(d, self.addStorage_params(this.value));
+							}}, [
+								Node.option({value: 'file'}, "Filesystem"),
+								Node.option({value: 'aws'}, "Amazon S3")
 								// TODO : support other object storages
 							])
 						]),
-						Node.fieldset([
-							Node.label(Translator.get('storage.file.path')),
-							Node.input({type: 'text', name: 'root', placeholder: Translator.get('storage.file.path')})
-						])
+						Node.div(self.addStorage_params('file'))
 					]),
 					Node.button({click: function(e) { e.preventDefault(); m.ok(); }}, Translator.get('cancel')),
 					Node.button({click: function(e)
@@ -256,15 +258,9 @@ var x = new Promise((ok, nok) =>
 						e.preventDefault();
 						
 						var form = this.previousSibling.previousSibling;
-						if( !form.elements.root.value )
-							{
-								Notify.warning(Translator.get('storage.file.empty'));
-								return;
-							}
-							
-						let params = {
-							root: form.elements.root.value
-						};
+													
+						let params = {}
+						form.querySelectorAll("div input").forEach(i => params[i.name] = i.value);
 							
 						m.dom.classList.add('wait');
 						Ajax.post('/api/contributor/storage', {data: {
@@ -287,6 +283,41 @@ var x = new Promise((ok, nok) =>
 					}}, Translator.get('create')),
 				], true);
 				m.dom.classList.add('promptable');
+			},
+
+			addStorage_params: function(type)
+			{
+				if( type == 'file' )
+				{
+					return Node.fieldset([
+						Node.label(Translator.get('storage.file.path')),
+						Node.input({type: 'text', name: 'root', placeholder: Translator.get('storage.file.path')})
+					]);
+				}
+				
+				if( type == 'aws' )
+				{
+					return [
+						Node.fieldset([
+							Node.label(Translator.get('storage.aws.region')),
+							Node.input({type: 'text', name: 'region', placeholder: Translator.get('storage.aws.region')})
+						]),
+						Node.fieldset([
+							Node.label(Translator.get('storage.aws.bucket')),
+							Node.input({type: 'text', name: 'bucket', placeholder: Translator.get('storage.aws.bucket')})
+						]),
+						Node.fieldset([
+							Node.label(Translator.get('storage.aws.key')),
+							Node.input({type: 'text', name: 'key', placeholder: Translator.get('storage.aws.key')})
+						]),
+						Node.fieldset([
+							Node.label(Translator.get('storage.aws.secret')),
+							Node.input({type: 'password', name: 'secret', placeholder: Translator.get('storage.aws.secret')})
+						]),
+					];
+				}
+				
+				return [];
 			},
 			
 			codeStorage: function()

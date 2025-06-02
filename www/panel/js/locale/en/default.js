@@ -201,6 +201,13 @@ export default {
 	'me.password.empty': "Password cannot be empty",
 	'me.password.mismatch': "Password mismatch",
 	'me.password.short': "Password too short",
+	'me.destroy': "Destroy instance",
+	'me.destroy.confirm': "<em>Whoa, easy!</em> Be careful with this.<br /><br />This action will destroy this Uniqorn instance, all endpoints and all local data without any recovery possible."
+		+ "<br /><br />Please enter your multifactor code to confirm:",
+	'me.destroy.mfa': "Multifactor code",
+	'me.destroy.abort': "Multifactor code missing",
+	'me.destroy.success': "Instance destroyed",
+	'me.destroy.error': "Could not destroy instance",
 	
 	'env.title': "Global Environment Variables",
 	'env.add': "Add variable",
@@ -347,6 +354,10 @@ export default {
 	'storage.database.rename.confirm': "<em>Whoa, easy!</em> Be careful with this.<br /><br />If you change the database name you'll need to update your API code too.",
 	'storage.database.rename.success': "Database renamed",
 	'storage.database.rename.error': "Could not rename database",
+	'storage.aws.region': "Region",
+	'storage.aws.bucket': "Bucket Name",
+	'storage.aws.key': "Access Key",
+	'storage.aws.secret': "Secret",
 	
 	'': ""
 };

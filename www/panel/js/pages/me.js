@@ -72,7 +72,10 @@ var x = new Promise((ok, nok) =>
 								Node.span(Translator.get('me.reset_mfa'))]),
 							Node.button({className: 'raised', click: (e) => { e.preventDefault(); self.reset_password(); }}, [
 								Node.span({className: 'icon'}, 'key'), 
-								Node.span(Translator.get('me.reset_password'))])
+								Node.span(Translator.get('me.reset_password'))]),
+							ae.userlevel == 'manager' ? Node.button({className: 'raised', click: (e) => { e.preventDefault(); self.destroy(); }}, [
+								Node.span({className: 'icon'}, 'warning'), 
+								Node.span(Translator.get('me.destroy'))]) : null,
 						])
 					);
 					self.dom.classList.remove('wait');
@@ -166,7 +169,42 @@ var x = new Promise((ok, nok) =>
 						Node.button({click: function(e) { e.preventDefault(); m.ok(); }}, Translator.get('cancel')),
 					])
 				], true);
-			}
+			},
+			
+			destroy: function()
+			{
+				var self = this;
+				var m = Modal.custom([
+					Node.p(Translator.get('me.destroy.confirm')), 
+					Node.input({name: 'mfa', type: 'text', placeholder: Translator.get('me.destroy.mfa')}),
+					Node.div({className: 'action'},
+					[
+						Node.button({click: function(e)
+						{
+							e.preventDefault();
+							let mfa = m.dom.querySelector('input').value;
+							if( !mfa )
+							{
+								m.ok();
+								Notify.error(Translator.get('me.destroy.abort'));
+								return;
+							}
+							
+							document.body.classList.add('wait');
+							Ajax.post('/api/manager/destroy', {data: {mfa: mfa}}).then(() =>
+							{
+								Notify.success(Translator.get('me.destroy.success'));
+								location.reload(true);
+							}, () =>
+							{
+								document.body.classList.remove('wait');
+								Notify.error(Translator.get('me.destroy.error'));
+							});
+						}}, Translator.get('me.destroy')),
+						Node.button({click: function(e) { e.preventDefault(); m.ok(); }}, Translator.get('cancel')),
+					])
+				], true);
+			},
 		});
 		
 		ok(page);
