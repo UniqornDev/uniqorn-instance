@@ -10,4 +10,4 @@
 .page.endpoint .versions h3 { color: var(--yellow); padding-top: 0; padding-bottom: 0.3rem; font-weight: 400; }
 .page.endpoint .versions li.head h3 { color: var(--green); }
 .page.endpoint .versions .icon { font-size: 1.2rem; vertical-align: sub; }
-.page.endpoint .versions p { font-size: 0.8rem; color: #0008; padding-left: 2rem; }
+.page.endpoint .versions p { font-size: 0.8rem; color: #0008; padding-left: 2rem; line-height: 1.5rem; }

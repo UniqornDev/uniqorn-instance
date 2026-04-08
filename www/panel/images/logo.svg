@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1653" height="1787">
+	<g id="hair">
+		<path d="m1437 764 186.82 132.05 10.3094 358.6382z" fill="#bac960" fill-rule="evenodd"/>
+		<path d="M1165.89 244 1483.7794 496.49418 1107.31 389.906 970.597 266.73766Z" fill="#ce3a54" fill-rule="evenodd"/>
+		<path d="M1200 452 1511.78 537.391 1653 856 1382.7351 657.82633Z" fill="#e19a44" fill-rule="evenodd"/>
+		<path d="M806 154 1078 410.091 847.21 467Z" fill="#e17066" fill-rule="evenodd"/>
+		<path d="M566 195 778.456 285.64268 802 440 605.486 323.899Z" fill="#a41f3f" fill-rule="evenodd"/>
+	</g>
+	<g id="horn">
+		<path d="M580.807 350 756 456.217 676.2 587.157 555.124 654 490 575.253 571.634 437.904Z" fill="#c33f74" fill-rule="evenodd"/>
+		<path d="M407.952 241 556 335.313 538.636 426.88 467.354 545 365 431.458Z" fill="#e19a44" fill-rule="evenodd"/>
+		<path d="M274.142 157 383 227.559 344.58 398 222 265.129Z" fill="#ebbd45" fill-rule="evenodd"/>
+		<path d="M0 0 249 147.992 203.228 243Z" fill="#c6cc68" fill-rule="evenodd"/>
+	</g>
+	<g id="neck">
+		<path d="M1101 1176.81 1269.95 1629 910 1787l17.84-549.89Z" fill="#9A9EC7" fill-rule="evenodd"/>
+		<path d="M1365.14 697 1585 1253.28 1454 1406.34 1190.28 1016Z" fill="#d0d2e3" fill-rule="evenodd"/>
+		<path d="M1190.28 1016 1101 1176.81 1269.95 1629 1454 1406.34Z" fill="#d0d2e3" fill-rule="evenodd"/>
+	</g>
+	<g id="face">
+		<path d="M854.2694 501.14977 1142.2301 430.06468 1333 656.869 1199.59 900.1 524.309 1278 327.638 1180.43 274 1107.6 546.314 689.85 777.9499 632.9683Z" fill="#d0d2e3" fill-rule="evenodd"/>
+		<path d="M1199.59 900.1 1067.95 1150.5 618 1321 524.309 1278Z" fill="#9a9ec7" fill-rule="evenodd"/>
+		<path d="m274 1107.6-46 76.96 65.684 178.58L329 1385.56 361.77484 1197.3655 327.638 1180.43Z" fill="#aeb1d0" fill-rule="evenodd"/>
+		<path d="M618 1321 591.853 1424.02 445.976 1446 329 1385.56 361.78667 1197.2976 524.309 1278Z" fill="#7c81b6" fill-rule="evenodd"/>
+		<path d="M634 830 693.26 750.96 803 729 752.52 812.43Z" fill="#454a97" fill-rule="evenodd"/>
+	</g>
+</svg>

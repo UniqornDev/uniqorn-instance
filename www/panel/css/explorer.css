@@ -1,0 +1,434 @@
+
+/* ============================================================
+   Unified Storage & Database Explorer
+   ============================================================ */
+
+/* --- Fullscreen modal override --- */
+/* Modal structure: body > div.modal > div (content) > div.explorer */
+/* The 'fullscreen' class is added to div.modal */
+
+body > div.modal.fullscreen > div {
+	width: 95vw;
+	height: 90vh;
+	max-width: none;
+	max-height: 90vh;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+/* --- Explorer root --- */
+
+.explorer {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+	min-height: 0;
+}
+
+/* --- Toolbar --- */
+
+.explorer-toolbar {
+	display: flex;
+	align-items: center;
+	padding: 0.5rem;
+	gap: 0.5rem;
+	border-bottom: 1px solid #0002;
+	flex-shrink: 0;
+	padding-right: 4rem;
+}
+
+.explorer-toolbar .breadcrumb {
+	display: flex;
+	flex: 1;
+	align-items: center;
+	overflow-x: auto;
+	gap: 0.25rem;
+	min-width: 0;
+	font-size: 1rem;
+	padding: 0.25rem 1rem;
+	border-radius: 0.25rem;
+	background: #eee;
+}
+
+.explorer-toolbar .breadcrumb > span {
+	cursor: pointer;
+	color: var(--blue);
+	white-space: nowrap;
+}
+.explorer-toolbar .breadcrumb > span:hover {
+	text-decoration: underline;
+}
+.explorer-toolbar .breadcrumb > span:last-child {
+	font-weight: 400;
+	cursor: default;
+	color: var(--black);
+}
+.explorer-toolbar .breadcrumb > span:last-child:hover {
+	text-decoration: none;
+}
+
+.explorer-toolbar .breadcrumb > span.separator {
+	color: #0005;
+	cursor: default;
+	user-select: none;
+}
+.explorer-toolbar .breadcrumb > span.separator:hover {
+	text-decoration: none;
+}
+
+.explorer-toolbar button {
+	margin: 0;
+	min-width: auto;
+	padding: 0 0.5rem;
+	line-height: 2rem;
+	font-size: 0.8rem;
+}
+.explorer-toolbar button .icon {
+	font-size: 1.1rem;
+	vertical-align: middle;
+	margin-right: 0.25rem;
+}
+
+/* --- Body (tree + content side by side) --- */
+
+.explorer-body {
+	flex: 1;
+	display: flex;
+	overflow: hidden;
+	min-height: 0;
+}
+
+/* --- Tree panel --- */
+
+.explorer-tree {
+	width: 250px;
+	min-width: 150px;
+	overflow-y: auto;
+	border-right: 1px solid #0002;
+	padding: 0.5rem;
+	flex-shrink: 0;
+}
+
+.explorer-tree .tree-node { }
+
+.explorer-tree .tree-item {
+	display: flex;
+	align-items: center;
+	padding: 0.25rem 0.5rem;
+	cursor: pointer;
+	border-radius: 2px;
+	white-space: nowrap;
+	font-size: 1rem;
+	user-select: none;
+	transition: background-color 0.15s ease;
+}
+.explorer-tree .tree-item:hover {
+	background-color: #0001;
+}
+.explorer-tree .tree-item.selected {
+	background-color: #747caa20;
+	font-weight: 400;
+}
+
+.explorer-tree .tree-item .icon {
+	margin-right: 0.4rem;
+	font-size: 1.1rem;
+	line-height: 1rem;
+	vertical-align: middle;
+}
+
+.explorer-tree .tree-item .chevron {
+	display: inline-block;
+	width: 1rem;
+	text-align: center;
+	font-size: 0.9rem;
+	transition: transform 0.2s ease;
+	flex-shrink: 0;
+	color: #0006;
+}
+.explorer-tree .tree-item .chevron.open {
+	transform: rotate(90deg);
+}
+
+.explorer-tree .tree-children {
+	padding-left: 1.25rem;
+}
+.explorer-tree .tree-children.collapsed {
+	display: none;
+}
+
+/* --- Content panel --- */
+
+.explorer-content {
+	flex: 1;
+	overflow: auto;
+	padding: 0;
+	min-width: 0;
+}
+
+/* --- File grid --- */
+
+.file-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+	gap: 1rem;
+	padding: 1rem;
+}
+
+.file-grid .file-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	padding: 0.75rem 0.5rem;
+	cursor: pointer;
+	border-radius: 4px;
+	word-break: break-word;
+	text-align: center;
+	transition: background-color 0.15s ease;
+}
+.file-grid .file-item:hover {
+	background-color: #0001;
+}
+.file-grid .file-item.selected {
+	background-color: #747caa20;
+}
+
+.file-grid .file-item .icon {
+	font-size: 3rem;
+	line-height: 3rem;
+	margin-bottom: 0.5rem;
+	color: var(--blue);
+}
+.file-grid .file-item .name {
+	font-size: 1rem;
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.file-grid .file-item {
+	position: relative;
+}
+.file-grid .file-item .icon.delete {
+	display: none;
+	position: absolute;
+	top: 0.25rem;
+	right: 0.25rem;
+	font-size: 1rem;
+	line-height: 1rem;
+	color: #c20037;
+	cursor: pointer;
+	margin: 0;
+}
+.file-grid .file-item:hover .icon.delete {
+	display: block;
+}
+
+/* --- Drag & drop --- */
+
+.explorer-content.dragover {
+	background-color: #747caa08;
+	outline: 2px dashed var(--blue);
+	outline-offset: -4px;
+}
+
+/* --- Data grid (table for database content) --- */
+
+.data-grid {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.85rem;
+}
+
+.data-grid th {
+	background-color: #f5f5f5;
+	padding: 0.5rem 0.75rem;
+	text-align: left;
+	border-bottom: 2px solid #0003;
+	cursor: pointer;
+	white-space: nowrap;
+	user-select: none;
+	font-weight: 400;
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	color: var(--blue);
+	font-weight: 600;
+}
+.data-grid th:hover {
+	background-color: #eee;
+}
+
+.data-grid th .sort-icon {
+	display: inline-block;
+	font-size: 0.7rem;
+	margin-left: 0.3rem;
+	vertical-align: middle;
+	color: #0006;
+}
+
+.data-grid th input {
+	width: 100%;
+	box-sizing: border-box;
+	margin: 0.3rem 0 0 0;
+	padding: 0.2rem 0.4rem;
+	border: 1px solid #0002;
+	border-bottom: 1px solid #0002;
+	border-radius: 2px;
+	font-size: 0.8rem;
+	font-weight: 300;
+}
+.data-grid th input:focus {
+	border-color: var(--blue);
+	border-bottom-color: var(--blue);
+}
+
+.data-grid td {
+	padding: 0.4rem 0.75rem;
+	border-bottom: 1px solid #0001;
+	max-width: 300px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.data-grid tr:hover td {
+	background-color: #0001;
+}
+.data-grid tbody tr:nth-child(even) td {
+	background-color: #00000006;
+}
+.data-grid tbody tr:hover td {
+	background-color: #747caa10;
+}
+
+.data-grid .row-actions {
+	white-space: nowrap;
+	text-align: right;
+	padding: 0 0.25rem;
+}
+.data-grid .row-actions .icon {
+	cursor: pointer;
+	font-size: 1.1rem;
+	margin: 0 0.15rem;
+	opacity: 0.3;
+	transition: opacity 0.15s ease;
+}
+.data-grid tr:hover .row-actions .icon {
+	opacity: 0.7;
+}
+.data-grid .row-actions .icon:hover {
+	opacity: 1;
+}
+.data-grid .row-actions .icon.disabled,
+.data-grid tr:hover .row-actions .icon.disabled,
+.data-grid .row-actions .icon.disabled:hover {
+	opacity: 0.15;
+	cursor: not-allowed;
+}
+
+.nopk-hint {
+	text-align: right;
+	font-size: 0.8rem;
+	color: #0005;
+	padding: 0.5rem 1rem;
+	margin: 0;
+}
+
+.row-form fieldset {
+	margin-bottom: 0.5rem;
+}
+.row-form label {
+	font-weight: 400;
+}
+.row-form input {
+	width: 100%;
+	box-sizing: border-box;
+}
+
+/* --- SQL dialog --- */
+
+.sql-input {
+	width: 100%;
+	min-height: 200px;
+	font-family: monospace;
+	font-size: 0.9rem;
+	padding: 0.75rem;
+	border: 1px solid #0003;
+	border-radius: 4px;
+	resize: vertical;
+	box-sizing: border-box;
+	color: var(--black);
+	background-color: #fcfcfc;
+	line-height: 1.4;
+	tab-size: 4;
+}
+.sql-input:focus {
+	border-color: var(--blue);
+}
+
+.sql-result {
+	margin-top: 1rem;
+	max-height: 300px;
+	overflow: auto;
+	border: 1px solid #0002;
+	border-radius: 4px;
+}
+
+.sql-error {
+	color: #c20037;
+	background-color: #c2003710;
+	padding: 0.75rem;
+	border-radius: 4px;
+	font-size: 0.85rem;
+	margin-top: 0.75rem;
+	font-family: monospace;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+/* --- Empty state --- */
+
+.explorer-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+	color: #0004;
+	user-select: none;
+}
+
+.explorer-empty .icon {
+	font-size: 4rem;
+	line-height: 4rem;
+	margin-bottom: 1rem;
+}
+
+.explorer-empty p {
+	font-size: 0.9rem;
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 768px) {
+	body > div.modal.fullscreen > div {
+		width: 100vw;
+		height: 100vh;
+		max-height: 100vh;
+	}
+
+	.explorer-tree {
+		width: 180px;
+		min-width: 120px;
+	}
+
+	.file-grid {
+		grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+		gap: 0.5rem;
+	}
+}

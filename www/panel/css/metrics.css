@@ -1,0 +1,30 @@
+
+.page.metrics { }
+
+.page.metrics li { background-color: #aaa1; padding: 1rem; margin-bottom: 1rem; }
+.page.metrics li > h3 { color: var(--green); padding-top: 0; padding-bottom: 0.3rem; font-weight: 400; }
+.page.metrics li > p { font-size: 0.8rem; color: #0008; }
+
+.page.metrics canvas { max-height: 10rem; }
+
+.page.metrics .drilldown { color: var(--blue); border-bottom-color: var(--blue); background-color: #aaa1; }
+
+.page.metrics .table { max-width: 100%; overflow: auto; max-height: 20rem; }
+.page.metrics table { border-collapse: collapse; border-spacing: 0; }
+.page.metrics thead { }
+.page.metrics thead tr {  }
+.page.metrics thead th { 
+	border-bottom: 2px solid var(--blue); font-weight: 600; color: var(--blue); font-size: 0.9rem; padding: 0.5rem 1rem;
+	text-align: center;
+}
+.page.metrics tbody { }
+.page.metrics tbody tr { }
+.page.metrics tbody td:first-of-type { font-weight: 600; color: var(--blue); text-align: left; }
+.page.metrics tbody td { text-align: center; padding: 0.5rem 1rem; }
+.page.metrics tbody tr:nth-child(even) td { background-color: #747caa20; }
+.page.metrics tbody tr:nth-child(odd) td { background-color: #fff2; }
+.page.metrics tbody tr:hover td:first-of-type { color: var(--pink) !important; }
+.page.metrics tbody tr:hover td { background-color: #d75d7f20 !important; }
+
+.timerange input, .timerange select { display: inline-block; width: auto; font-size: 0.8rem; margin: 0 1rem; color: var(--blue); border-bottom-color: var(--blue); background-color: #aaa1; }
+.timerange { white-space: nowrap; margin-bottom: 3rem; color: #0008; font-size: 0.8rem; }

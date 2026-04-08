@@ -7,24 +7,32 @@
 		<meta http-equiv="cache-control" content="no-cache" />
 		<meta http-equiv="pragma" content="no-cache" />
 		<meta http-equiv="expires" content="0" />
-
+		<style>
+			:root {
+				--text: #000000 !important;
+				--accent: #d75d7f !important;
+				--background: #ffffff !important;
+			}
+		</style>
+		<script>
+			globalThis.config = {
+				corePath: new URL('../ae/', location.href).href,
+				sitePath: new URL('./', location.href).href,
+				noCache: false,
+				defaultPage: 'home',
+				defaultLocale: 'en',
+			};
+		</script>
+		<script type="importmap">
+			{ "imports": { "core": "../ae/index.js" } }
+		</script>
 		<script type="module">
-			import('./js/ae.js').then(({default: ae}) =>
-			{
-				// preload css
-				ae.require('ae.app.css').catch(() => {});
-				ae.ready.then(() =>
-				{
-					// preload classes
-					ae.require('Translator', 'Node', 'Page', 'App').then(([Translator]) =>
-					{
-						// preload locales
-						Translator.load('default');
-					});
-				});
-			});
+			import { App } from 'core';
+			const app = new App();
+			app.setup();
 		</script>
 	</head>
 	<body>
+		<noscript>Javascript is required to view this page</noscript>
 	</body>
 </html>

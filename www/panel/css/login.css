@@ -18,3 +18,5 @@ section.login {
 #login_panel p { font-size: 1.4rem; font-weight: 300; padding-bottom: 2rem; }
 #login_panel p.error { font-size: 1rem; font-weight: 300; color: #f00; text-align: center; }
 #login_panel .warning { font-size: 1rem; font-weight: 300; color: #777; text-align: left; padding-bottom: 2rem; }
+#login_panel label { display: block; padding-top: 1rem; color: var(--blue);}
+#login_panel label input { margin-left: 0; }

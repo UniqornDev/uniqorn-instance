@@ -1,9 +1,13 @@
 package local;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -28,8 +32,15 @@ import aeonics.http.Endpoint.Rest;
 import aeonics.template.Factory;
 import aeonics.template.Parameter;
 import aeonics.util.StringUtils;
+import aeonics.util.Tuples.Quadruple;
 import aeonics.util.Tuples.Tuple;
 import uniqorn.*;
+import uniqorn.internal.GitSync;
+import uniqorn.internal.Globals;
+import aeonics.git.Bare;
+import aeonics.git.Git;
+import aeonics.git.GitRepo;
+import aeonics.git.Operations;
 
 /**
  * This class regroups all the local-instance apis
@@ -38,8 +49,10 @@ import uniqorn.*;
 public class ContributorEndpoints
 {
 	static final String ROOT = "/api/contributor";
-	
+
 	private ContributorEndpoints() { /* no instances */ }
+
+	private static GitRepo.Type repo() { return Registry.of(GitRepo.class).get("uniqorn"); }
 	
 	public static void register()
 	{
@@ -54,6 +67,7 @@ public class ContributorEndpoints
 		_User.register();
 		_Storage.register();
 		_Database.register();
+		_Explorer.register();
 	}
 	
 	// ========================================
@@ -70,6 +84,11 @@ public class ContributorEndpoints
 			.template()
 			.summary("Change password")
 			.description("This endpoint can be used to change the current user password. All user tokens are invalidated.")
+			.add(new Parameter("current_password")
+				.summary("Current password")
+				.description("The current user password for verification")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
 			.add(new Parameter("password")
 				.summary("Password")
 				.description("The new user password")
@@ -81,7 +100,11 @@ public class ContributorEndpoints
 			{
 				Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
 				if( provider == null ) throw new HttpException(500, "Security provider unavailable");
-				
+
+				// verify current password
+				User.Type check = provider.authenticate(Data.map().put("username", user.login()).put("password", data.asString("current_password")));
+				if( check == null || !check.id().equals(user.id()) ) throw new HttpException(403, "Invalid current password");
+
 				// leave and rejoin
 				provider.leave(user);
 				provider.join(Data.map().put("password", data.asString("password")).put("username", user.login()), user);
@@ -99,13 +122,21 @@ public class ContributorEndpoints
 			.template()
 			.summary("Reset OTP")
 			.description("This endpoint can be used to reset the OTP of the current user.")
+			.add(new Parameter("otp")
+				.summary("OTP")
+				.description("The current OTP code is required as proof of ownership.")
+				.optional(false)
+				.format(Parameter.Format.TEXT))
 			.create()
 			.<Rest.Type>cast()
 			.process((data, user) ->
 			{
+				if( !Multifactor.check(user, data) )
+					throw new HttpException(403, "OTP code mismatch");
+
 				for( Multifactor.Type m : Registry.of(Multifactor.class) )
 					m.forget(user);
-				
+
 				return Data.map().put("success", true);
 			})
 			.url(ROOT + "/self/otp")
@@ -131,10 +162,16 @@ public class ContributorEndpoints
 			.<Rest.Type>cast()
 			.process(data ->
 			{
+				java.io.File disk = new java.io.File(Manager.of(Config.class).get(Api.class, "rootstorage").asString());
+				
 				Data info = Data.map()
 					.put("plan", Manager.of(Config.class).get(Api.class, "plan"))
 					.put("prefix", Manager.of(Config.class).get(Api.class, "prefix"))
 					.put("limits", Data.list()
+						.add(Data.map()
+							.put("name", "disk")
+							.put("max", disk.getTotalSpace())
+							.put("current", disk.getTotalSpace() - disk.getFreeSpace()))
 						.add(Data.map()
 							.put("name", "workspaces")
 							.put("max", Manager.of(Config.class).get(Api.class, "workspaces"))
@@ -146,11 +183,11 @@ public class ContributorEndpoints
 						.add(Data.map()
 							.put("name", "consumers")
 							.put("max", Manager.of(Config.class).get(Api.class, "consumers"))
-							.put("current", Registry.of(User.class).filter(u -> u.hasRole(Constants.ROLE_CONSUMER)).size()))
+							.put("current", Registry.of(User.class).filter(u -> u.hasRole(Globals.ROLE_CONSUMER)).size()))
 						.add(Data.map()
 							.put("name", "users")
 							.put("max", Manager.of(Config.class).get(Api.class, "users"))
-							.put("current", Registry.of(User.class).filter(u -> u.hasRole(Constants.ROLE_CONTRIBUTOR) || u.hasRole(Constants.ROLE_MANAGER)).size()))
+							.put("current", Registry.of(User.class).filter(u -> u.hasRole(Globals.ROLE_CONTRIBUTOR) || u.hasRole(Globals.ROLE_MANAGER)).size()))
 						.add(Data.map()
 							.put("name", "groups")
 							.put("max", Manager.of(Config.class).get(Api.class, "groups"))
@@ -172,29 +209,15 @@ public class ContributorEndpoints
 							.put("max", Manager.of(Config.class).get(Api.class, "env"))
 							.put("current", Manager.of(Config.class).all(Api.class).keySet().stream().filter(key -> key.startsWith("env.")).count()))
 						.add(Data.map()
-							.put("name", "versions")
-							.put("max", (Manager.of(Config.class).get(Api.class, "versions").asLong()+1) * Manager.of(Config.class).get(Api.class, "endpoints").asLong())
-							.put("current", Registry.of(Version.class).size()))
-						.add(Data.map()
 							.put("name", "rate")
 							.put("max", Manager.of(Config.class).get(Api.class, "rate").asLong() * Manager.of(Config.class).get(Api.class, "endpoints").asLong())
 							.put("current", StreamSupport.stream(Registry.of(uniqorn.Endpoint.class).spliterator(), false).mapToLong(e -> e.counter().get()).sum()))
 					);
 				
 				Data warnings = Data.list();
-				int versions = Manager.of(Config.class).get(Api.class, "versions").asInt();
 				int rate = Manager.of(Config.class).get(Api.class, "rate").asInt();
 				for( uniqorn.Endpoint.Type e : Registry.of(uniqorn.Endpoint.class) )
 				{
-					int current = e.countRelations("versions");
-					if( current >= versions )
-					{
-						warnings.add(Data.map()
-							.put("type", "versions")
-							.put("max", versions)
-							.put("current", current)
-							.put("endpoint", e.id()));
-					}
 					if( e.counter().get() >= (rate * 0.8) )
 					{
 						warnings.add(Data.map()
@@ -228,7 +251,7 @@ public class ContributorEndpoints
 			.<Endpoint.Websocket.Type>cast()
 			.before((data, user) ->
 			{
-				if( !user.hasRole(Constants.ROLE_CONTRIBUTOR) && !user.hasRole(Constants.ROLE_MANAGER) )
+				if( !user.hasRole(Globals.ROLE_CONTRIBUTOR) && !user.hasRole(Globals.ROLE_MANAGER) )
 					throw new HttpException(403);
 				if( Manager.of(Config.class).get(Api.class, "plan").asString().equals(Constants.PLAN_TRIAL) )
 					throw new HttpException(429, "Not available in current plan");
@@ -263,7 +286,7 @@ public class ContributorEndpoints
 			.<Endpoint.Websocket.Type>cast()
 			.before((data, user) ->
 			{
-				if( !user.hasRole(Constants.ROLE_CONTRIBUTOR) && !user.hasRole(Constants.ROLE_MANAGER) )
+				if( !user.hasRole(Globals.ROLE_CONTRIBUTOR) && !user.hasRole(Globals.ROLE_MANAGER) )
 					throw new HttpException(403);
 				if( Manager.of(Config.class).get(Api.class, "plan").asString().equals(Constants.PLAN_TRIAL) )
 					throw new HttpException(429, "Not available in current plan");
@@ -297,18 +320,18 @@ public class ContributorEndpoints
 				.format(Parameter.Format.TEXT)
 				.optional(false)
 				.max(50))
-			.add(new Parameter("prefix")
-				.summary("Prefix")
-				.description("The url path prefix")
-				.format(Parameter.Format.TEXT)
-				.optional(true)
-				.max(50))
 			.create()
 			.<Rest.Type>cast()
 			.process(data ->
 			{
+				// creating a workspace does not mean we create a GIT folder.
+				// it will be there already present when needed.
+				
 				synchronized(Workspace.class)
 				{
+					if( !StringUtils.isComposedOf(data.asString("name"), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.") )
+						throw new HttpException(400, "Invalid workspace name. Only alphanumeric and '-_.' is allowed");
+					
 					if( Registry.of(Workspace.class).size() >= Manager.of(Config.class).get(Api.class, "workspaces").asInt() )
 						throw new HttpException(429, "Maximum number of workspaces reached");
 					
@@ -316,13 +339,11 @@ public class ContributorEndpoints
 						throw new HttpException(400, "Duplicate workspace name");
 					
 					// normalize prefix
-					String prefix = data.asString("prefix");
-					if( prefix.length() > 0 )
-						prefix = "/" + Storage.normalize(prefix).replace('\\', '/');
+					String prefix = Storage.normalize(data.asString("name"));
 					
 					Workspace.Type workspace = Factory.of(Workspace.class).get(Workspace.class).create()
 						.name(data.asString("name"))
-						.parameter("prefix", prefix);
+						.parameter("prefix", "/" + prefix);
 					
 					return Data.map().put("id", workspace.id());
 				}
@@ -345,36 +366,44 @@ public class ContributorEndpoints
 				.summary("Name")
 				.description("The workspace name")
 				.format(Parameter.Format.TEXT)
-				.optional(true)
+				.optional(false)
 				.max(50))
-			.add(new Parameter("prefix")
-				.summary("Prefix")
-				.description("The url path prefix")
+			.add(new Parameter("message")
+				.summary("Message")
+				.description("The reason for this action")
 				.format(Parameter.Format.TEXT)
-				.optional(true)
-				.max(50))
+				.max(8192)
+				.optional(true))
 			.create()
 			.<Rest.Type>cast()
-			.process(data ->
+			.process((data, user) ->
 			{
+				if( !StringUtils.isComposedOf(data.asString("name"), "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.") )
+					throw new HttpException(400, "Invalid workspace name. Only alphanumeric and '-_.' is allowed");
+				
 				synchronized(Workspace.class)
 				{
 					Workspace.Type workspace = Registry.of(Workspace.class).get(data.asString("id"));
 					if( workspace == null ) throw new HttpException(404, "Unknown workspace");
 					
-					if( !data.isEmpty("name") )
+					if( Registry.of(Workspace.class).get(data.asString("name")) != null &&  Registry.of(Workspace.class).get(data.asString("name")) != workspace )
+						throw new HttpException(400, "Duplicate workspace name");
+					
+					String oldPath = GitSync.src + "/" + workspace.name();
+					String newPath = GitSync.src + "/" + data.asString("name");
+					Bare.rename(repo().store(), repo().root(), oldPath, newPath, user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Rename workspace" : data.asString("message"), null);
+					
+					workspace.name(data.asString("name"));
+					workspace.parameter("prefix", "/" + data.asString("name"));
+					
+					for( Tuple<Entity, Data> e : workspace.relations("endpoints") )
 					{
-						if( Registry.of(Workspace.class).get(data.asString("name")) != null &&  Registry.of(Workspace.class).get(data.asString("name")) != workspace )
-							throw new HttpException(400, "Duplicate workspace name");
-						workspace.name(data.asString("name"));
+						if( !(e.a instanceof uniqorn.Endpoint.Type) ) continue;
+						 
+						oldPath = e.a.valueOf("path").asString();
+						newPath = GitSync.src + "/" + workspace.name() + "/" + Paths.get(oldPath).getFileName().toString();
+						e.a.parameter("path", newPath);
 					}
-					
-					// normalize prefix
-					String prefix = data.asString("prefix");
-					if( prefix.length() > 0 )
-						prefix = "/" + Storage.normalize(prefix).replace('\\', '/');
-					
-					workspace.parameter("prefix", prefix);
 					
 					return Data.map().put("success", true);
 				}
@@ -393,12 +422,23 @@ public class ContributorEndpoints
 				.format(Parameter.Format.TEXT)
 				.rule(Parameter.Rule.ID)
 				.optional(false))
+			.add(new Parameter("message")
+				.summary("Message")
+				.description("The reason for this action")
+				.format(Parameter.Format.TEXT)
+				.max(8192)
+				.optional(true))
 			.create()
 			.<Rest.Type>cast()
-			.process(data ->
+			.process((data, user) ->
 			{
 				synchronized(Workspace.class)
 				{
+					Workspace.Type workspace = Registry.of(Workspace.class).get(data.asString("id"));
+					if( workspace == null ) throw new HttpException(404, "Unknown workspace");
+					
+					Bare.remove(repo().store(), repo().root(),GitSync.src + "/" + workspace.name(), user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Remove workspace" : data.asString("message"), null);
+					
 					Registry.of(Workspace.class).remove(data.asString("id"));
 					return Data.map().put("success", true);
 				}
@@ -517,9 +557,15 @@ public class ContributorEndpoints
 				.format(Parameter.Format.CODE)
 				.optional(false)
 				.max(1024*512))
+			.add(new Parameter("message")
+				.summary("Message")
+				.description("The reason for this action")
+				.format(Parameter.Format.TEXT)
+				.max(8192)
+				.optional(true))
 			.create()
 			.<Rest.Type>cast()
-			.process(data ->
+			.process((data, user) ->
 			{
 				synchronized(uniqorn.Endpoint.class)
 				{
@@ -532,19 +578,32 @@ public class ContributorEndpoints
 					if( plan.equals(Constants.PLAN_TRIAL) || plan.equals(Constants.PLAN_PERSONAL) )
 						uniqorn.Endpoint.Type.checkCode(data.asString("code"));
 					
-					uniqorn.Endpoint.Type endpoint = Factory.of(uniqorn.Endpoint.class).get(uniqorn.Endpoint.class).create();
+					String path = GitSync.src + "/" + workspace.name() + "/endpoint_" + System.nanoTime() + ".java";
+					Bare.createFile(repo().store(), repo().root(),path, data.asString("code").getBytes(StandardCharsets.ISO_8859_1), user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Create endpoint" : data.asString("message"), null);
+					
+					uniqorn.Endpoint.Type endpoint = Factory.of(uniqorn.Endpoint.class).get(uniqorn.Endpoint.class).create(Data.map().put("parameters", Data.map()
+						.put("enabled", true)
+						.put("path", path)
+						.put("sha", "0")
+						))
+						.name("Git endpoint " + path)
+						.internal(true)
+						.<uniqorn.Endpoint.Type>cast();
+					
+					workspace.addRelation("endpoints", endpoint);
+					
+					Data result = Data.map().put("id", endpoint.id());
 					try
 					{
-						endpoint.updateHead(data.asString("code"));
-						workspace.addRelation("endpoints", endpoint);
+						endpoint.updateHead();
+						result.put("error", null);
 					}
 					catch(Exception e)
 					{
-						Registry.of(uniqorn.Endpoint.class).remove(endpoint);
-						throw e;
+						result.put("error", (e instanceof HttpException ? ((HttpException)e).data : e.getMessage()));
 					}
 					
-					return Data.map().put("id", endpoint.id());
+					return result;
 				}
 			})
 			.url(ROOT + "/endpoint")
@@ -579,26 +638,47 @@ public class ContributorEndpoints
 				.format(Parameter.Format.BOOLEAN)
 				.rule(Parameter.Rule.BOOLEAN)
 				.optional(true))
+			.add(new Parameter("message")
+				.summary("Message")
+				.description("The reason for this action")
+				.format(Parameter.Format.TEXT)
+				.max(8192)
+				.optional(true))
 			.create()
 			.<Rest.Type>cast()
-			.process(data ->
+			.process((data, user) ->
 			{
 				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("id"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
+				if( e == null || !(e instanceof uniqorn.Endpoint.Type)) throw new HttpException(404, "Unknown endpoint");
 				
 				if( !data.isEmpty("workspace") )
 				{
 					Workspace.Type target = Registry.of(Workspace.class).get(data.asString("workspace"));
 					if( target == null ) throw new HttpException(404, "Unknown workspace");
-					
-					for( Workspace.Type w : Registry.of(Workspace.class) )
-						if( w.hasRelation("endpoints", e) )
-							w.removeRelation("endpoints", e);
-					target.addRelation("endpoints", e);
+					if( !target.hasRelation("endpoints", e) )
+					{
+						for( Workspace.Type w : Registry.of(Workspace.class) )
+							if( w.hasRelation("endpoints", e) )
+								w.removeRelation("endpoints", e);
+						target.addRelation("endpoints", e);
+						
+						String oldPath = e.valueOf("path").asString();
+						String newPath = GitSync.src + "/" + target.name() + "/" + Paths.get(oldPath).getFileName().toString();
+						Bare.rename(repo().store(), repo().root(), oldPath, newPath, user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Move endpoint" : data.asString("message"), null);
+						e.parameter("path", newPath);
+					}
 				}
 				
-				if( !data.isEmpty("enabled") )
+				if( !data.isEmpty("enabled") && e.valueOf("enabled").asBool() != data.asBool("enabled") )
+				{
 					e.parameter("enabled", data.get("enabled"));
+					String path = e.<uniqorn.Endpoint.Type>cast().fullPath();
+					String state = data.asBool("enabled") ? "enabled" : "disabled";
+					if( path.isBlank() )
+						Manager.of(Logger.class).config(Api.class, "Endpoint with source {} (not deployed) state changed to {}", e.valueOf("path"), state);
+					else
+						Manager.of(Logger.class).config(Api.class, "Endpoint {} state changed to {}", path, state);
+				}
 				
 				if( !data.isEmpty("code") )
 				{
@@ -606,7 +686,8 @@ public class ContributorEndpoints
 					if( plan.equals(Constants.PLAN_TRIAL) || plan.equals(Constants.PLAN_PERSONAL) )
 						uniqorn.Endpoint.Type.checkCode(data.asString("code"));
 					
-					e.updateHead(data.asString("code"));
+					Bare.createFile(repo().store(), repo().root(), e.valueOf("path").asString(), data.asString("code").getBytes(StandardCharsets.ISO_8859_1), user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Update endpoint" : data.asString("message"), null);
+					e.updateHead();
 				}
 				
 				return Data.map().put("success", true);
@@ -625,13 +706,24 @@ public class ContributorEndpoints
 				.format(Parameter.Format.TEXT)
 				.rule(Parameter.Rule.ID)
 				.optional(false))
+			.add(new Parameter("message")
+				.summary("Message")
+				.description("The reason for this action")
+				.format(Parameter.Format.TEXT)
+				.max(8192)
+				.optional(true))
 			.create()
 			.<Rest.Type>cast()
-			.process(data ->
+			.process((data, user) ->
 			{
 				synchronized(uniqorn.Endpoint.class)
 				{
-					Registry.of(uniqorn.Endpoint.class).remove(data.asString("id"));
+					uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("id"));
+					if( e == null || !(e instanceof uniqorn.Endpoint.Type) ) throw new HttpException(404, "Unknown endpoint");
+					
+					Bare.remove(repo().store(), repo().root(), e.valueOf("path").asString(), user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Remove endpoint" : data.asString("message"), null);
+					e.internal(false);
+					Registry.of(uniqorn.Endpoint.class).remove(e);
 					return Data.map().put("success", true);
 				}
 			})
@@ -691,12 +783,14 @@ public class ContributorEndpoints
 			.process(data ->
 			{
 				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("id"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
+				if( e == null || !(e instanceof uniqorn.Endpoint.Type) ) throw new HttpException(404, "Unknown endpoint");
 				
 				Data endpoint = Data.map().put("id", e.id()).put("enabled", e.valueOf("enabled").asBool());
 				
-				Version.Type head = e.firstRelation("head");
-				endpoint.put("head", Data.map().put("id", head.id()).put("code", head.valueOf("code")).put("date", head.date()));
+				endpoint.put("head", Data.map()
+					.put("id", e.valueOf("sha").asString())
+					.put("code", Bare.object(repo().store(), repo().root(),e.valueOf("sha").asString()).b)
+					);
 				
 				Api a = e.<uniqorn.Endpoint.Type>cast().api();
 				Endpoint.Rest.Type r = a != null ? a.api() : null;
@@ -722,12 +816,15 @@ public class ContributorEndpoints
 				}
 				
 				Data versions = Data.list();
-				for( Tuple<Entity, Data> v : e.relations("versions") )
+				Bare.history(repo().store(), repo().root(), null, e.valueOf("path").asString()).forEach((h) ->
 				{
-					if( v.a == null ) continue;
-					Data version = Data.map().put("id", v.a.id()).put("name", v.a.name()).put("date", v.a.<Version.Type>cast().date());
-					versions.add(version);
-				}
+					versions.add(Data.map()
+						.put("author", h.a)
+						.put("date", h.b)
+						.put("message", h.c)
+						.put("id", h.d)
+						);
+				});
 				endpoint.put("versions", versions);
 					
 				return endpoint;
@@ -747,157 +844,6 @@ public class ContributorEndpoints
 	{
 		private static void register() { }
 		
-		private static final Endpoint.Rest.Type versionCreate = new Endpoint.Rest() { }
-			.template()
-			.summary("Create a version")
-			.description("This endpoint tags the head of an endpoint as a new version")
-			.add(new Parameter("endpoint")
-				.summary("Endpoint")
-				.description("The target endpoint id")
-				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
-				.optional(false))
-			.add(new Parameter("name")
-				.summary("name")
-				.description("The version name")
-				.format(Parameter.Format.TEXT)
-				.optional(false)
-				.max(50))
-			.create()
-			.<Rest.Type>cast()
-			.process(data ->
-			{
-				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("endpoint"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
-				
-				synchronized(e)
-				{
-					if( e.countRelations("versions") >= Manager.of(Config.class).get(Api.class, "versions").asInt() )
-						throw new HttpException(429, "Maximum number of versions reached");
-					
-					Version.Type v = e.tag(data.asString("name"));
-					return Data.map().put("id", v.id());
-				}
-			})
-			.url(ROOT + "/endpoint/{endpoint}/version")
-			.method("POST")
-			;
-			
-		private static final Endpoint.Rest.Type versionDelete = new Endpoint.Rest() { }
-			.template()
-			.summary("Remove a version")
-			.description("This endpoint removes a version from an endpoint")
-			.add(new Parameter("id")
-				.summary("Id")
-				.description("The version id")
-				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
-				.optional(false))
-			.add(new Parameter("endpoint")
-				.summary("Endpoint")
-				.description("The endpoint id")
-				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
-				.optional(false))
-			.create()
-			.<Rest.Type>cast()
-			.process(data ->
-			{
-				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("endpoint"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
-				
-				Version.Type v = Registry.of(Version.class).get(data.asString("id"));
-				if( v == null ) throw new HttpException(404, "Unknown version");
-				
-				synchronized(e)
-				{
-					if( !e.hasRelation("versions", v) )
-						if( v == null ) throw new HttpException(404, "Unknown version in the specified endpoint");
-					
-					e.removeRelation("versions", v);
-					Registry.of(Version.class).remove(v);
-					return Data.map().put("success", true);
-				}
-			})
-			.url(ROOT + "/endpoint/{endpoint}/version/{id}")
-			.method("DELETE")
-			;
-		
-		private static final Endpoint.Rest.Type versionUpdate = new Endpoint.Rest() { }
-			.template()
-			.summary("Update a version")
-			.description("This endpoint updates a version name")
-			.add(new Parameter("id")
-				.summary("Id")
-				.description("The version id")
-				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
-				.optional(false))
-			.add(new Parameter("endpoint")
-				.summary("Endpoint")
-				.description("The endpoint id")
-				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
-				.optional(false))
-			.add(new Parameter("name")
-				.summary("name")
-				.description("The version name")
-				.format(Parameter.Format.TEXT)
-				.optional(false)
-				.max(50))
-			.create()
-			.<Rest.Type>cast()
-			.process(data ->
-			{
-				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("endpoint"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
-				
-				Version.Type v = Registry.of(Version.class).get(data.asString("id"));
-				if( v == null ) throw new HttpException(404, "Unknown version");
-				
-				v.name(data.asString("name"));
-				return Data.map().put("success", true);
-			})
-			.url(ROOT + "/endpoint/{endpoint}/version/{id}")
-			.method("PUT")
-			;
-		
-		private static final Endpoint.Rest.Type versionRestore = new Endpoint.Rest() { }
-			.template()
-			.summary("Restore version")
-			.description("This endpoint restores a version as the head of an endpoint")
-			.add(new Parameter("id")
-				.summary("Id")
-				.description("The version id")
-				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
-				.optional(false))
-			.add(new Parameter("endpoint")
-				.summary("Endpoint")
-				.description("The endpoint id")
-				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
-				.optional(false))
-			.create()
-			.<Rest.Type>cast()
-			.process(data ->
-			{
-				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("endpoint"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
-				
-				Version.Type v = Registry.of(Version.class).get(data.asString("id"));
-				if( v == null ) throw new HttpException(404, "Unknown version");
-				
-				if( !e.hasRelation("versions", v) )
-					if( v == null ) throw new HttpException(404, "Unknown version in the specified endpoint");
-					
-				e.restore(v.id());
-				return Data.map().put("success", true);
-			})
-			.url(ROOT + "/endpoint/{endpoint}/version/{id}")
-			.method("PATCH")
-			;
-		
 		private static final Endpoint.Rest.Type versionList = new Endpoint.Rest() { }
 			.template()
 			.summary("List versions")
@@ -913,15 +859,18 @@ public class ContributorEndpoints
 			.process(data ->
 			{
 				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("endpoint"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
+				if( e == null || !(e instanceof uniqorn.Endpoint.Type) ) throw new HttpException(404, "Unknown endpoint");
 				
 				Data versions = Data.list();
-				for( Tuple<Entity, Data> v : e.relations("versions") )
+				Bare.history(repo().store(), repo().root(), null, e.valueOf("path").asString()).forEach((h) ->
 				{
-					if( v.a == null ) continue;
-					Data version = Data.map().put("id", v.a.id()).put("name", v.a.name()).put("date", v.a.<Version.Type>cast().date());
-					versions.add(version);
-				}
+					versions.add(Data.map()
+						.put("author", h.a)
+						.put("date", h.b)
+						.put("message", h.c)
+						.put("id", h.d)
+						);
+				});
 					
 				return versions;
 			})
@@ -937,7 +886,7 @@ public class ContributorEndpoints
 				.summary("Id")
 				.description("The version id")
 				.format(Parameter.Format.TEXT)
-				.rule(Parameter.Rule.ID)
+				.rule(Parameter.Rule.ALPHANUM)
 				.optional(false))
 			.add(new Parameter("endpoint")
 				.summary("Endpoint")
@@ -950,19 +899,25 @@ public class ContributorEndpoints
 			.process(data ->
 			{
 				uniqorn.Endpoint.Type e = Registry.of(uniqorn.Endpoint.class).get(data.asString("endpoint"));
-				if( e == null ) throw new HttpException(404, "Unknown endpoint");
+				if( e == null || !(e instanceof uniqorn.Endpoint.Type) ) throw new HttpException(404, "Unknown endpoint");
 				
-				Version.Type v = Registry.of(Version.class).get(data.asString("id"));
-				if( v == null ) throw new HttpException(404, "Unknown version");
-				
-				if( !e.hasRelation("versions", v) )
-					if( v == null ) throw new HttpException(404, "Unknown version in the specified endpoint");
+				Quadruple<String, Long, String, String> version = null;
+				for( Quadruple<String, Long, String, String> h : Bare.history(repo().store(), repo().root(), null, e.valueOf("path").asString()) )
+				{
+					if( h.d.equals(data.asString("id")) )
+					{
+						version = h;
+						break;
+					}
+				}
+				if( version == null ) throw new HttpException(404, "Unknown version");
 				
 				return Data.map()
-					.put("id", v.id())
-					.put("name", v.name())
-					.put("date", v.date())
-					.put("code", v.valueOf("code"));
+					.put("author", version.a)
+					.put("date", version.b)
+					.put("message", version.c)
+					.put("id", version.d)
+					.put("code", Bare.object(repo().store(), repo().root(),version.d).b);
 			})
 			.url(ROOT + "/endpoint/{endpoint}/version/{id}")
 			.method("GET")
@@ -1117,7 +1072,7 @@ public class ContributorEndpoints
 				
 				Data list = Data.list();
 				for( User.Type u : Registry.of(User.class) )
-					if( u.hasRole(Constants.ROLE_CONSUMER) && u.hasRole(role) )
+					if( u.hasRole(Globals.ROLE_CONSUMER) && u.hasRole(role) )
 						list.add(Data.map().put("name", u.name()).put("id", u.id()));
 				return Data.map().put("name", role.name()).put("users", list);
 			})
@@ -1173,7 +1128,7 @@ public class ContributorEndpoints
 				
 				Data list = Data.list();
 				for( User.Type u : Registry.of(User.class) )
-					if( u.hasRole(Constants.ROLE_CONSUMER) && u.isMemberOf(group) )
+					if( u.hasRole(Globals.ROLE_CONSUMER) && u.isMemberOf(group) )
 						list.add(Data.map().put("name", u.name()).put("id", u.id()));
 				return Data.map().put("name", group.name()).put("users", list);
 			})
@@ -1208,7 +1163,7 @@ public class ContributorEndpoints
 			.process((data, currentUser) ->
 			{
 				// force consumers for Contributor users. Manager users can choose.
-				if( currentUser.hasRole(Constants.ROLE_CONTRIBUTOR) )
+				if( currentUser.hasRole(Globals.ROLE_CONTRIBUTOR) )
 					data.put("type", "consumer");
 					
 				Data list = Data.list();
@@ -1220,28 +1175,28 @@ public class ContributorEndpoints
 						.put("name", u.name())
 						.put("login", u.login())
 						.put("type", 
-							u.hasRole(Constants.ROLE_CONSUMER) ? "consumer" :
-							u.hasRole(Constants.ROLE_CONTRIBUTOR) ? "contributor" : 
-							u.hasRole(Constants.ROLE_MANAGER) ? "manager" : null);
+							u.hasRole(Globals.ROLE_CONSUMER) ? "consumer" :
+							u.hasRole(Globals.ROLE_CONTRIBUTOR) ? "contributor" : 
+							u.hasRole(Globals.ROLE_MANAGER) ? "manager" : null);
 					
 					if( data.isEmpty("type") )
 					{
-						if( u.hasRole(Constants.ROLE_CONSUMER) || u.hasRole(Constants.ROLE_MANAGER) || u.hasRole(Constants.ROLE_CONTRIBUTOR) )
+						if( u.hasRole(Globals.ROLE_CONSUMER) || u.hasRole(Globals.ROLE_MANAGER) || u.hasRole(Globals.ROLE_CONTRIBUTOR) )
 							list.add(current);
 					}
 					else if( data.asString("type").equals("consumer") )
 					{
-						if( u.hasRole(Constants.ROLE_CONSUMER) )
+						if( u.hasRole(Globals.ROLE_CONSUMER) )
 							list.add(current);
 					}
 					else if( data.asString("type").equals("manager") )
 					{
-						if( u.hasRole(Constants.ROLE_MANAGER) )
+						if( u.hasRole(Globals.ROLE_MANAGER) )
 							list.add(current);
 					}
 					else if( data.asString("type").equals("contributor") )
 					{
-						if( u.hasRole(Constants.ROLE_CONTRIBUTOR) )
+						if( u.hasRole(Globals.ROLE_CONTRIBUTOR) )
 							list.add(current);
 					}
 				}
@@ -1272,7 +1227,7 @@ public class ContributorEndpoints
 					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
 					
 					// Contributor users can only see Consumers
-					if( currentUser.hasRole(Constants.ROLE_CONTRIBUTOR) && !user.hasRole(Constants.ROLE_CONSUMER) )
+					if( currentUser.hasRole(Globals.ROLE_CONTRIBUTOR) && !user.hasRole(Globals.ROLE_CONSUMER) )
 						throw new HttpException(404, "Unknown user");
 					
 					Data roles = Data.list();
@@ -1294,9 +1249,9 @@ public class ContributorEndpoints
 						.put("name", user.name())
 						.put("login", user.login())
 						.put("type", 
-							user.hasRole(Constants.ROLE_CONSUMER) ? "consumer" :
-							user.hasRole(Constants.ROLE_CONTRIBUTOR) ? "contributor" : 
-							user.hasRole(Constants.ROLE_MANAGER) ? "manager" : null)
+							user.hasRole(Globals.ROLE_CONSUMER) ? "consumer" :
+							user.hasRole(Globals.ROLE_CONTRIBUTOR) ? "contributor" : 
+							user.hasRole(Globals.ROLE_MANAGER) ? "manager" : null)
 						.put("roles", roles)
 						.put("groups", groups)
 						;
@@ -1374,7 +1329,7 @@ public class ContributorEndpoints
 				{
 					// normalize path
 					String path = Storage.normalize(data.get("parameters").asString("root"));
-					String root = Manager.of(Config.class).get(Api.class, "storage").asString();
+					String root = Manager.of(Config.class).get(Api.class, "rootstorage").asString() + "/" + Manager.of(Config.class).get(Api.class, "storage").asString();
 					if( !path.startsWith(root) ) path = Storage.resolve(root, path);
 					data.get("parameters").put("root", path);
 				}
@@ -1419,6 +1374,8 @@ public class ContributorEndpoints
 			{
 				if( data.asString("id").equals(Constants.LOCAL_STORAGE) )
 					throw new HttpException(400, "Cannot update default local storage");
+				if( data.asString("id").equals(Constants.APP_STORAGE) )
+					throw new HttpException(400, "Cannot update app storage");
 				
 				synchronized(_Storage.class)
 				{
@@ -1455,6 +1412,8 @@ public class ContributorEndpoints
 			{
 				if( data.asString("id").equals(Constants.LOCAL_STORAGE) )
 					throw new HttpException(400, "Cannot remove default local storage");
+				if( data.asString("id").equals(Constants.APP_STORAGE) )
+					throw new HttpException(400, "Cannot remove app storage");
 					
 				synchronized(_Storage.class)
 				{
@@ -1533,6 +1492,15 @@ public class ContributorEndpoints
 				if( c == null )
 					throw new HttpException(400, "Database type not available");
 				
+				if( data.asString("type").equals("sqlite") )
+				{
+					// normalize path
+					String path = Storage.normalize(data.get("parameters").asString("path"));
+					String root = Manager.of(Config.class).get(Api.class, "rootstorage").asString() + "/" + Manager.of(Config.class).get(Api.class, "storage").asString();
+					if( !path.startsWith(root) ) path = Storage.resolve(root, path);
+					data.get("parameters").put("path", path);
+				}
+				
 				synchronized(_Database.class)
 				{
 					if( Registry.of(Database.class).filter(d -> d.type().startsWith("uniqorn.database.")).size() >= Manager.of(Config.class).get(Api.class, "databases").asInt() )
@@ -1571,6 +1539,9 @@ public class ContributorEndpoints
 			.<Rest.Type>cast()
 			.process(data ->
 			{
+				if( data.asString("id").equals(Constants.LOCAL_DATABASE) )
+					throw new HttpException(400, "Cannot update default local database");
+				
 				synchronized(_Database.class)
 				{
 					Database.Type d = Registry.of(Database.class).get(data.asString("id"));
@@ -1604,6 +1575,9 @@ public class ContributorEndpoints
 			.<Rest.Type>cast()
 			.process(data ->
 			{
+				if( data.asString("id").equals(Constants.LOCAL_DATABASE) )
+					throw new HttpException(400, "Cannot remove default local database");
+				
 				synchronized(_Database.class)
 				{
 					Database.Type d = Registry.of(Database.class).get(data.asString("id"));
@@ -1614,6 +1588,661 @@ public class ContributorEndpoints
 				}
 			})
 			.url(ROOT + "/database/{id}")
+			.method("DELETE")
+			;
+	}
+
+	// ========================================
+	//
+	// EXPLORER
+	//
+	// ========================================
+
+	private static class _Explorer
+	{
+		private static void register() { }
+
+		// --- Storage browsing ---
+
+		private static final Endpoint.Rest.Type storageTree = new Endpoint.Rest() { }
+			.template()
+			.summary("Browse storage tree")
+			.description("This endpoint lists the contents of a storage directory")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The storage id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("path")
+				.summary("Path")
+				.description("The directory path to list")
+				.format(Parameter.Format.TEXT)
+				.optional(true)
+				.defaultValue(""))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Storage.Type s = Registry.of(Storage.class).get(data.asString("id"));
+				if( s == null || !s.type().startsWith("uniqorn.storage.") ) throw new HttpException(404, "Unknown storage");
+
+				Collection<String> entries = s.tree(Storage.normalize(data.asString("path")));
+				Data list = Data.list();
+				for( String entry : entries )
+				{
+					list.add(entry);
+				}
+				return list;
+			})
+			.url(ROOT + "/storage/{id}/tree")
+			.method("GET")
+			;
+
+		private static final Endpoint.Rest.Type storageFileGet = new Endpoint.Rest() { }
+			.template()
+			.summary("Get storage file")
+			.description("This endpoint downloads a file from a storage")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The storage id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("path")
+				.summary("Path")
+				.description("The file path")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Storage.Type s = Registry.of(Storage.class).get(data.asString("id"));
+				if( s == null || !s.type().startsWith("uniqorn.storage.") ) throw new HttpException(404, "Unknown storage");
+
+				String normalized = Storage.normalize(data.asString("path"));
+				byte[] bytes = s.get(normalized);
+				if( bytes == null ) throw new HttpException(404, "File not found");
+
+				String filename = normalized.contains("/") ? normalized.substring(normalized.lastIndexOf('/') + 1) : normalized;
+				filename = filename.replaceAll("[\"\\\\\\r\\n]", "_");
+				return Data.map()
+					.put("isHttpResponse", true)
+					.put("code", 200)
+					.put("body", new String(bytes, StandardCharsets.ISO_8859_1))
+					.put("mime", "application/octet-stream")
+					.put("headers", Data.map()
+						.put("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+						.put("content-encoding", null));
+			})
+			.url(ROOT + "/storage/{id}/file")
+			.method("GET")
+			;
+
+		private static final Endpoint.Rest.Type storageFilePut = new Endpoint.Rest() { }
+			.template()
+			.summary("Upload storage file")
+			.description("This endpoint uploads a file to a storage")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The storage id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("path")
+				.summary("Path")
+				.description("The file path")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.add(new Parameter("file")
+				.summary("File")
+				.description("The file content")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, user) ->
+			{
+				Storage.Type s = Registry.of(Storage.class).get(data.asString("id"));
+				if( s == null || !s.type().startsWith("uniqorn.storage.") ) throw new HttpException(404, "Unknown storage");
+
+				byte[] content;
+				if( data.isMap("file") )
+					content = data.get("file").asString("content").getBytes(StandardCharsets.ISO_8859_1);
+				else
+					content = data.asString("file").getBytes(StandardCharsets.ISO_8859_1);
+				s.put(Storage.normalize(data.asString("path")), content);
+
+				if( data.asString("id").equals(Constants.APP_STORAGE) )
+				{
+					Bare.createFile(repo().store(), repo().root(),
+						"www/" + Storage.normalize(data.asString("path")),
+						content, user.name() + " <" + user.login() + ">",
+						"Update " + data.asString("path"), null);
+				}
+
+				return Data.map().put("success", true);
+			})
+			.url(ROOT + "/storage/{id}/file")
+			.method("POST")
+			;
+
+		private static final Endpoint.Rest.Type storageFileDelete = new Endpoint.Rest() { }
+			.template()
+			.summary("Delete storage file")
+			.description("This endpoint removes a file from a storage")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The storage id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("path")
+				.summary("Path")
+				.description("The file path")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, user) ->
+			{
+				Storage.Type s = Registry.of(Storage.class).get(data.asString("id"));
+				if( s == null || !s.type().startsWith("uniqorn.storage.") ) throw new HttpException(404, "Unknown storage");
+
+				s.remove(Storage.normalize(data.asString("path")));
+
+				if( data.asString("id").equals(Constants.APP_STORAGE) )
+				{
+					Bare.remove(repo().store(), repo().root(),
+						"www/" + Storage.normalize(data.asString("path")),
+						user.name() + " <" + user.login() + ">",
+						"Remove " + data.asString("path"), null);
+				}
+
+				return Data.map().put("success", true);
+			})
+			.url(ROOT + "/storage/{id}/file")
+			.method("DELETE")
+			;
+
+		// --- Database browsing ---
+
+		private static final Endpoint.Rest.Type databaseTables = new Endpoint.Rest() { }
+			.template()
+			.summary("List database tables")
+			.description("This endpoint returns the list of tables in a database")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				return d.tables();
+			})
+			.url(ROOT + "/database/{id}/tables")
+			.method("GET")
+			;
+
+		private static final Endpoint.Rest.Type databaseColumns = new Endpoint.Rest() { }
+			.template()
+			.summary("Get table columns")
+			.description("This endpoint returns the column definitions for a specific table")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("table")
+				.summary("Table")
+				.description("The table name")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				return d.columns(data.asString("table"));
+			})
+			.url(ROOT + "/database/{id}/columns")
+			.method("GET")
+			;
+
+		private static final Endpoint.Rest.Type databaseQuery = new Endpoint.Rest() { }
+			.template()
+			.summary("Query database table")
+			.description("This endpoint queries a database table with optional filters, sorting and pagination")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("table")
+				.summary("Table")
+				.description("The table name to query")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.add(new Parameter("filters")
+				.summary("Filters")
+				.description("A list of filter objects with column, op, and value properties")
+				.format(Parameter.Format.JSON)
+				.rule(Parameter.Rule.JSON_LIST)
+				.optional(true))
+			.add(new Parameter("orderBy")
+				.summary("Order by")
+				.description("The column name to sort by")
+				.format(Parameter.Format.TEXT)
+				.optional(true))
+			.add(new Parameter("orderDir")
+				.summary("Order direction")
+				.description("The sort direction: ASC or DESC")
+				.format(Parameter.Format.TEXT)
+				.optional(true))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				// get schema and validate table (case-insensitive)
+				Data schema = d.schema();
+				String requestedTable = data.asString("table");
+				String tableName = null;
+				Data tableSchema = null;
+				for( Data t : schema )
+				{
+					if( t.asString("name").equalsIgnoreCase(requestedTable) )
+					{
+						tableName = t.asString("name");
+						tableSchema = t;
+						break;
+					}
+				}
+				if( tableSchema == null ) throw new HttpException(400, "Unknown table: " + requestedTable);
+
+				// collect valid column names (lowercase key -> canonical name)
+				java.util.Map<String, String> columnMap = new java.util.HashMap<>();
+				for( Data col : tableSchema.get("columns") )
+					columnMap.put(col.asString("name").toLowerCase(), col.asString("name"));
+
+				// build WHERE clause
+				StringBuilder where = new StringBuilder();
+				List<Object> params = new ArrayList<>();
+
+				if( !data.isEmpty("filters") )
+				{
+					Set<String> allowedOps = Set.of("=", "!=", "<", ">", "<=", ">=", "LIKE", "IS NULL", "IS NOT NULL");
+					for( Data filter : data.get("filters") )
+					{
+						String canonical = columnMap.get(filter.asString("column").toLowerCase());
+						String op = filter.asString("op");
+
+						if( canonical == null ) throw new HttpException(400, "Unknown column: " + filter.asString("column"));
+						if( !allowedOps.contains(op) ) throw new HttpException(400, "Invalid operator: " + op);
+
+						if( where.length() > 0 ) where.append(" AND ");
+
+						if( "IS NULL".equals(op) || "IS NOT NULL".equals(op) )
+						{
+							where.append(canonical).append(" ").append(op);
+						}
+						else
+						{
+							where.append(canonical).append(" ").append(op).append(" ?");
+							params.add(filter.asString("value"));
+						}
+					}
+				}
+
+				String whereClause = where.length() > 0 ? " WHERE " + where.toString() : "";
+
+				// build ORDER BY
+				String orderClause = "";
+				if( !data.isEmpty("orderBy") )
+				{
+					String canonical = columnMap.get(data.asString("orderBy").toLowerCase());
+					if( canonical == null ) throw new HttpException(400, "Unknown order column: " + data.asString("orderBy"));
+					String dir = data.isEmpty("orderDir") ? "ASC" : data.asString("orderDir");
+					if( !"ASC".equals(dir) && !"DESC".equals(dir) ) dir = "ASC";
+					orderClause = " ORDER BY " + canonical + " " + dir;
+				}
+
+				// data query
+				Data rows = d.query("SELECT * FROM " + tableName + whereClause + orderClause, params.toArray());
+
+				return Data.map().put("rows", rows).put("total", rows.size());
+			})
+			.url(ROOT + "/database/{id}/query")
+			.method("POST")
+			;
+
+		private static final Endpoint.Rest.Type databaseInsertRow = new Endpoint.Rest() { }
+			.template()
+			.summary("Insert row")
+			.description("This endpoint inserts a row into a database table")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("table")
+				.summary("Table")
+				.description("The table name")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.add(new Parameter("values")
+				.summary("Values")
+				.description("The column values as a JSON map")
+				.format(Parameter.Format.JSON)
+				.rule(Parameter.Rule.JSON_MAP)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				Data schema = d.schema();
+				String requestedTable = data.asString("table");
+				String tableName = null;
+				Data tableSchema = null;
+				for( Data t : schema )
+				{
+					if( t.asString("name").equalsIgnoreCase(requestedTable) ) { tableName = t.asString("name"); tableSchema = t; break; }
+				}
+				if( tableSchema == null ) throw new HttpException(400, "Unknown table: " + requestedTable);
+
+				java.util.Map<String, String> columnMap = new java.util.HashMap<>();
+				for( Data col : tableSchema.get("columns") )
+					columnMap.put(col.asString("name").toLowerCase(), col.asString("name"));
+
+				Data values = data.get("values");
+				StringBuilder cols = new StringBuilder();
+				StringBuilder placeholders = new StringBuilder();
+				List<Object> params = new ArrayList<>();
+
+				for( Map.Entry<String, Data> entry : values.entrySet() )
+				{
+					String canonical = columnMap.get(entry.getKey().toLowerCase());
+					if( canonical == null ) throw new HttpException(400, "Unknown column: " + entry.getKey());
+					if( cols.length() > 0 ) { cols.append(", "); placeholders.append(", "); }
+					cols.append(canonical);
+					placeholders.append("?");
+					params.add(entry.getValue().isNull() ? null : entry.getValue().asString());
+				}
+
+				if( params.isEmpty() ) throw new HttpException(400, "No values provided");
+
+				d.query("INSERT INTO " + tableName + " (" + cols + ") VALUES (" + placeholders + ")", params.toArray());
+				return Data.map().put("success", true);
+			})
+			.url(ROOT + "/database/{id}/row")
+			.method("POST")
+			;
+
+		private static final Endpoint.Rest.Type databaseUpdateRow = new Endpoint.Rest() { }
+			.template()
+			.summary("Update row")
+			.description("This endpoint updates a row in a database table by primary key")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("table")
+				.summary("Table")
+				.description("The table name")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.add(new Parameter("values")
+				.summary("Values")
+				.description("The column values to update as a JSON map")
+				.format(Parameter.Format.JSON)
+				.rule(Parameter.Rule.JSON_MAP)
+				.optional(false))
+			.add(new Parameter("keys")
+				.summary("Keys")
+				.description("The primary key values to identify the row as a JSON map")
+				.format(Parameter.Format.JSON)
+				.rule(Parameter.Rule.JSON_MAP)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				Data schema = d.schema();
+				String requestedTable = data.asString("table");
+				String tableName = null;
+				Data tableSchema = null;
+				for( Data t : schema )
+				{
+					if( t.asString("name").equalsIgnoreCase(requestedTable) ) { tableName = t.asString("name"); tableSchema = t; break; }
+				}
+				if( tableSchema == null ) throw new HttpException(400, "Unknown table: " + requestedTable);
+
+				java.util.Map<String, String> columnMap = new java.util.HashMap<>();
+				java.util.Map<String, String> primaryMap = new java.util.HashMap<>();
+				for( Data col : tableSchema.get("columns") )
+				{
+					columnMap.put(col.asString("name").toLowerCase(), col.asString("name"));
+					if( col.asBool("primary") ) primaryMap.put(col.asString("name").toLowerCase(), col.asString("name"));
+				}
+
+				// Build SET clause
+				Data values = data.get("values");
+				StringBuilder set = new StringBuilder();
+				List<Object> params = new ArrayList<>();
+
+				for( Map.Entry<String, Data> entry : values.entrySet() )
+				{
+					String canonical = columnMap.get(entry.getKey().toLowerCase());
+					if( canonical == null ) throw new HttpException(400, "Unknown column: " + entry.getKey());
+					if( set.length() > 0 ) set.append(", ");
+					set.append(canonical).append(" = ?");
+					params.add(entry.getValue().isNull() ? null : entry.getValue().asString());
+				}
+
+				if( params.isEmpty() ) throw new HttpException(400, "No values provided");
+
+				// Build WHERE clause from primary keys
+				Data keys = data.get("keys");
+				StringBuilder where = new StringBuilder();
+
+				for( Map.Entry<String, Data> entry : keys.entrySet() )
+				{
+					String canonical = primaryMap.get(entry.getKey().toLowerCase());
+					if( canonical == null ) throw new HttpException(400, "Invalid key column: " + entry.getKey());
+					if( where.length() > 0 ) where.append(" AND ");
+					where.append(canonical).append(" = ?");
+					params.add(entry.getValue().isNull() ? null : entry.getValue().asString());
+				}
+
+				if( where.length() == 0 ) throw new HttpException(400, "No primary key provided");
+
+				d.query("UPDATE " + tableName + " SET " + set + " WHERE " + where, params.toArray());
+				return Data.map().put("success", true);
+			})
+			.url(ROOT + "/database/{id}/row")
+			.method("PUT")
+			;
+
+		private static final Endpoint.Rest.Type databaseDeleteRow = new Endpoint.Rest() { }
+			.template()
+			.summary("Delete row")
+			.description("This endpoint deletes a row from a database table by primary key")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("table")
+				.summary("Table")
+				.description("The table name")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.add(new Parameter("keys")
+				.summary("Keys")
+				.description("The primary key values to identify the row as a JSON map")
+				.format(Parameter.Format.JSON)
+				.rule(Parameter.Rule.JSON_MAP)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				Data schema = d.schema();
+				String requestedTable = data.asString("table");
+				String tableName = null;
+				Data tableSchema = null;
+				for( Data t : schema )
+				{
+					if( t.asString("name").equalsIgnoreCase(requestedTable) ) { tableName = t.asString("name"); tableSchema = t; break; }
+				}
+				if( tableSchema == null ) throw new HttpException(400, "Unknown table: " + requestedTable);
+
+				java.util.Map<String, String> primaryMap = new java.util.HashMap<>();
+				for( Data col : tableSchema.get("columns") )
+					if( col.asBool("primary") ) primaryMap.put(col.asString("name").toLowerCase(), col.asString("name"));
+
+				Data keys = data.get("keys");
+				StringBuilder where = new StringBuilder();
+				List<Object> params = new ArrayList<>();
+
+				for( Map.Entry<String, Data> entry : keys.entrySet() )
+				{
+					String canonical = primaryMap.get(entry.getKey().toLowerCase());
+					if( canonical == null ) throw new HttpException(400, "Invalid key column: " + entry.getKey());
+					if( where.length() > 0 ) where.append(" AND ");
+					where.append(canonical).append(" = ?");
+					params.add(entry.getValue().isNull() ? null : entry.getValue().asString());
+				}
+
+				if( where.length() == 0 ) throw new HttpException(400, "No primary key provided");
+
+				d.query("DELETE FROM " + tableName + " WHERE " + where, params.toArray());
+				return Data.map().put("success", true);
+			})
+			.url(ROOT + "/database/{id}/row")
+			.method("DELETE")
+			;
+
+		private static final Endpoint.Rest.Type databaseExecute = new Endpoint.Rest() { }
+			.template()
+			.summary("Execute SQL")
+			.description("This endpoint executes a raw SQL query on a database. Requires manager role.")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("sql")
+				.summary("SQL")
+				.description("The SQL query to execute")
+				.format(Parameter.Format.TEXT)
+				.optional(false)
+				.max(10000))
+			.create()
+			.<Rest.Type>cast()
+			.before((data, user) ->
+			{
+				if( !user.hasRole(Globals.ROLE_MANAGER) )
+					throw new HttpException(403, "Manager role required");
+			})
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				try
+				{
+					Data result = d.query(data.asString("sql"));
+					return Data.map().put("result", result);
+				}
+				catch(Exception e)
+				{
+					return Data.map().put("error", e.getMessage());
+				}
+			})
+			.url(ROOT + "/database/{id}/execute")
+			.method("POST")
+			;
+
+		private static final Endpoint.Rest.Type databaseDropTable = new Endpoint.Rest() { }
+			.template()
+			.summary("Drop table")
+			.description("This endpoint drops a table from a database. Requires manager role.")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The database id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("table")
+				.summary("Table")
+				.description("The table name to drop")
+				.format(Parameter.Format.TEXT)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.before((data, user) ->
+			{
+				if( !user.hasRole(Globals.ROLE_MANAGER) )
+					throw new HttpException(403, "Manager role required");
+			})
+			.process(data ->
+			{
+				Database.Type d = Registry.of(Database.class).get(data.asString("id"));
+				if( d == null || !d.type().startsWith("uniqorn.database.") ) throw new HttpException(404, "Unknown database");
+
+				// Validate table exists in schema (case-insensitive)
+				Data schema = d.schema();
+				String requestedTable = data.asString("table");
+				String tableName = null;
+				for( Data t : schema )
+				{
+					if( t.asString("name").equalsIgnoreCase(requestedTable) )
+					{
+						tableName = t.asString("name");
+						break;
+					}
+				}
+				if( tableName == null ) throw new HttpException(400, "Unknown table: " + requestedTable);
+
+				try
+				{
+					d.query("DROP TABLE " + tableName);
+					return Data.map().put("success", true);
+				}
+				catch(Exception e)
+				{
+					throw new HttpException(500, e.getMessage());
+				}
+			})
+			.url(ROOT + "/database/{id}/table")
 			.method("DELETE")
 			;
 	}
