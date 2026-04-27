@@ -343,7 +343,7 @@ public class ManagerEndpoints
 					}
 					else
 					{
-						if( Registry.of(User.class).filter(u -> u.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) || u.hasRole(uniqorn.internal.Globals.ROLE_CONTRIBUTOR)).size() >= Manager.of(Config.class).get(Api.class, "users").asInt() )
+						if( Registry.of(User.class).filter(u -> !u.hasRole(Role.SUPERADMIN) && (u.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) || u.hasRole(uniqorn.internal.Globals.ROLE_CONTRIBUTOR))).size() >= Manager.of(Config.class).get(Api.class, "users").asInt() )
 							throw new HttpException(429, "Maximum number of users reached");
 					}
 					

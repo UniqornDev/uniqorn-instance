@@ -1,0 +1,140 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.7",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-01-01T00:00:00Z",
+    "component": {
+      "type": "platform",
+      "bom-ref": "uniqorn-instance",
+      "name": "uniqorn-instance",
+      "version": "1.0.0",
+      "description": "Uniqorn Instance",
+      "supplier": {
+        "name": "Aeonics SRL",
+        "url": [ "https://uniqorn.dev" ]
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    "manufacturer": {
+      "name": "Aeonics SRL",
+      "url": [ "https://uniqorn.dev" ]
+    }
+  },
+  "components": [
+    {
+      "type": "library",
+      "bom-ref": "aeonics-core",
+      "name": "aeonics-core",
+      "version": "1.0.0",
+      "description": "Aeonics Core System",
+      "scope": "required"
+    },
+	{
+      "type": "library",
+      "bom-ref": "aeonics-http",
+      "name": "aeonics-http",
+      "version": "1.0.0",
+      "description": "Aeonics HTTP Transport",
+      "scope": "required"
+    },
+	{
+      "type": "library",
+      "bom-ref": "aeonics-git",
+      "name": "aeonics-git",
+      "version": "1.0.0",
+      "description": "Aeonics GIT Server",
+      "scope": "required"
+    },
+	{
+      "type": "library",
+      "bom-ref": "aeonics-mcp",
+      "name": "aeonics-mcp",
+      "version": "1.0.0",
+      "description": "Aeonics MCP Server",
+      "scope": "required"
+    },
+	{
+      "type": "library",
+      "bom-ref": "uniqorn",
+      "name": "uniqorn",
+      "version": "1.0.0",
+      "description": "Uniqorn Core",
+      "scope": "required"
+    },
+	{
+      "type": "framework",
+      "bom-ref": "aeonics-frontend",
+      "name": "aeonics.frontend",
+      "version": "1.0.0",
+      "description": "Aeonics Frontend Framework",
+      "scope": "required"
+    },
+    {
+      "type": "library",
+      "bom-ref": "sqlite-jdbc",
+      "name": "sqlite-jdbc",
+      "versionRange": "vers:java/>=3.50.2.0",
+      "description": "SQLite JDBC driver",
+      "scope": "required",
+      "supplier": {
+        "name": "Xerial"
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "Apache-2.0"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "mariadb-java-client",
+      "name": "mariadb-java-client",
+      "versionRange": "vers:java/>=2.5.3",
+      "description": "JDBC driver for MariaDB and MySQL",
+      "scope": "optional",
+      "supplier": {
+        "name": "MariaDB Corporation"
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "LGPL-2.1-or-later"
+          }
+        }
+      ]
+    },
+    {
+      "type": "library",
+      "bom-ref": "postgresql-jdbc",
+      "name": "postgresql-jdbc",
+      "versionRange": "vers:java/>=42.2.23",
+      "description": "PostgreSQL JDBC Driver",
+      "scope": "optional",
+      "supplier": {
+        "name": "PostgreSQL Global Development Group"
+      },
+      "licenses": [
+        {
+          "license": {
+            "id": "BSD-2-Clause"
+          }
+        }
+      ]
+    }
+  ],
+  "dependencies": [
+    {
+      "ref": "uniqorn-instance",
+      "dependsOn": [ "aeonics-core", "aeonics-http", "aeonics-git", "aeonics-mcp", "uniqorn", "aeonics-frontend", "sqlite-jdbc" ]
+    }
+  ]
+}

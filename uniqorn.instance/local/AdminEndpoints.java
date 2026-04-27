@@ -90,15 +90,12 @@ public class AdminEndpoints
 			if( !auth.startsWith("Bearer ") ) throw new HttpException(401, "Unauthorized");
 			checkCredentials(auth.substring(7), data.asString("mfa"));
 			
-			for( User.Type u : Registry.of(User.class) )
-			{
-				if( u.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) )
-					throw new HttpException(400, "Already initialized");
-			}
-			
+			if( Registry.of(User.class).filter(u -> u.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) && !u.hasRole(Role.SUPERADMIN)).size() >= Manager.of(Config.class).get(uniqorn.Api.class, "users").asInt() )
+				throw new HttpException(429, "Maximum number of users reached");
+
 			if( Registry.of(User.class).get(u -> u.name().equals(data.asString("login")) || u.login().equals(data.asString("login"))) != null )
 				throw new HttpException(400, "Duplicate user");
-			
+
 			Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
 			
 			User.Type manager = Factory.of(User.class).get(User.class).create()
@@ -111,83 +108,13 @@ public class AdminEndpoints
 			
 			String password = Manager.of(Security.class).randomHash();
 			provider.join(Data.map().put("password", password).put("username", manager.login()), manager);
-			
-			return Data.map().put("success", true).put("password", password);
-		})
-		.url("/account")
-		.method("POST")
-		;
-	
-	private static final Endpoint.Rest.Type init = new Endpoint.Rest() { }
-		.template()
-		.summary("Initialize")
-		.description("This endpoint can be used to create the initial user account.")
-		.add(new Parameter("login")
-			.summary("Login")
-			.description("The user login name")
-			.format(Parameter.Format.TEXT)
-			.optional(false)
-			.min(3)
-			.max(50))
-		.add(new Parameter("name")
-			.summary("Display name")
-			.description("The user display name")
-			.format(Parameter.Format.TEXT)
-			.optional(false)
-			.max(100))
-		.add(new Parameter("mfa")
-			.summary("Multifactor")
-			.description("The multifactor check")
-			.format(Parameter.Format.TEXT)
-			.optional(false)
-			.max(100))
-		.create()
-		.<Rest.Type>cast()
-		.process((data, user, request) ->
-		{
-			String auth = request.content().get("headers").asString("authorization");
-			if( !auth.startsWith("Bearer ") ) throw new HttpException(401, "Unauthorized");
-			checkCredentials(auth.substring(7), data.asString("mfa"));
-			
-			for( User.Type u : Registry.of(User.class) )
-			{
-				if( u.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) )
-					throw new HttpException(400, "Already initialized");
-			}
-			
-			if( Registry.of(User.class).get(u -> u.name().equals(data.asString("login")) || u.login().equals(data.asString("login"))) != null )
-				throw new HttpException(400, "Duplicate user");
-			
-			Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
-			
-			User.Type manager = Factory.of(User.class).get(User.class).create()
-				.name(data.asString("name"))
-				.parameter("login", data.asString("login"))
-				.addRelation("roles", Registry.of(Role.class).get(uniqorn.internal.Globals.ROLE_MANAGER))
-				.addRelation("groups", Group.USERS)
-				.cast()
-				;
-			
-			String password = Manager.of(Security.class).randomHash();
-			provider.join(Data.map().put("password", password).put("username", manager.login()), manager);
-			
-			// just make sure everything is clean
-			Path root = Path.of("/storage");
-			try( Stream<Path> files = Files.walk(root) )
-			{
-				files
-					.filter((p) -> !p.equals(root))
-			        .map(Path::toFile)
-			        .sorted(Comparator.reverseOrder())
-			        .forEach(java.io.File::delete);
-			}
 			
 			// do a snapshot now
 			Manager.of(Snapshot.class).create("auto");
-			
+
 			return Data.map().put("success", true).put("password", password);
 		})
-		.url("/init")
+		.url("/account")
 		.method("POST")
 		;
 		

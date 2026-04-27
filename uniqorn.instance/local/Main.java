@@ -49,8 +49,8 @@ import uniqorn.internal.UniqornMcp;
 
 public class Main extends Plugin
 {
-	public String summary() { return "Uniqorn instance v0.1"; }
-	public String description() { return "Uniqorn REST API instance"; }
+	public String summary() { return "Uniqorn Instance v1.0.0"; }
+	public String description() { return "Uniqorn Instance"; }
 	
 	public void start()
 	{

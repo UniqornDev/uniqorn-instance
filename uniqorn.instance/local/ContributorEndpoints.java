@@ -187,7 +187,7 @@ public class ContributorEndpoints
 						.add(Data.map()
 							.put("name", "users")
 							.put("max", Manager.of(Config.class).get(Api.class, "users"))
-							.put("current", Registry.of(User.class).filter(u -> u.hasRole(Globals.ROLE_CONTRIBUTOR) || u.hasRole(Globals.ROLE_MANAGER)).size()))
+							.put("current", Registry.of(User.class).filter(u -> !u.hasRole(Role.SUPERADMIN) && (u.hasRole(Globals.ROLE_CONTRIBUTOR) || u.hasRole(Globals.ROLE_MANAGER))).size()))
 						.add(Data.map()
 							.put("name", "groups")
 							.put("max", Manager.of(Config.class).get(Api.class, "groups"))
@@ -1170,6 +1170,7 @@ public class ContributorEndpoints
 				for( User.Type u : Registry.of(User.class) )
 				{
 					if( u.internal() ) continue;
+					if( u.hasRole(Role.SUPERADMIN) ) continue;
 					Data current = Data.map()
 						.put("id", u.id())
 						.put("name", u.name())
