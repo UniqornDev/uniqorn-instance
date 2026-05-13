@@ -1,5 +1,5 @@
 <h1 align="center">
-  <a href="https://uniqorn.dev"><img src="uniqorn.png" alt="Uniqorn" width="100"></a><br />
+  <a href="https://uniqorn.dev"><img src="uniqorn.png" alt="Uniqorn" width="100" /></a><br />
   Serverless Java REST APIs
 </h1>
 
@@ -34,6 +34,8 @@ request hits the new version.
 The same definition is also an MCP tool. The `summary` and `parameter` strings
 describe it for AI agents and for humans, security applies globally.
 Nothing else to write.
+
+<img src="screenshot-1.png" alt="Uniqorn panel capture" />
 
 ## Hot-reload
 
@@ -118,6 +120,8 @@ run is friction-free. Do not run it on anything that isn't your laptop.
 
 See the release `README.md` for the full first-run
 walkthrough, connecting git, and wiring up MCP.
+
+<img src="screenshot-2.png" alt="Claude Code with Uniqorn Agent" />
 
 ## Documentation
 
