@@ -121,13 +121,13 @@ run is friction-free. Do not run it on anything that isn't your laptop.
 See the release `README.md` for the full first-run
 walkthrough, connecting git, and wiring up MCP.
 
-<img src="screenshot-2.png" alt="Claude Code with Uniqorn Agent" />
-
 ## Documentation
 
 - [uniqorn.dev/doc](https://uniqorn.dev/doc): concepts and guides
 - [uniqorn.dev/javadoc](https://uniqorn.dev/javadoc): full API reference
 - `AGENT.md`: prompt context for an AI agent that writes Uniqorn endpoints
+
+<img src="screenshot-2.png" alt="Claude Code with Uniqorn Agent" />
 
 ## License
 
