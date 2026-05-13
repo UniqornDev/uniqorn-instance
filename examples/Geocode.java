@@ -16,7 +16,7 @@ public class Geocode implements Supplier<Api>
                     .put("format", "json");
                 Data headers = JSON.object()
                     .put("User-Agent", "uniqorn-sample-geocode/1.0");
-                Data response;
+                Data response = null;
                 try
                 {
                     response = Http.get("https://nominatim.openstreetmap.org/search", params, headers, "GET", 10000);
