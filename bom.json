@@ -29,6 +29,34 @@
   },
   "components": [
     {
+      "type": "platform",
+      "bom-ref": "jre",
+      "name": "Java Runtime Environment",
+      "versionRange": "vers:java/>=11",
+      "description": "Java Runtime Environment, any distribution (OpenJDK, Oracle, etc.)",
+      "scope": "required",
+	  "isExternal": true
+    },
+	{
+      "type": "framework",
+      "bom-ref": "aeonics",
+      "name": "aeonics",
+      "version": "1.0.0",
+      "description": "Aeonics application framework for Java",
+      "scope": "required",
+      "supplier": {
+        "name": "Aeonics SRL",
+        "url": [ "https://aeonics.io" ]
+      },
+      "licenses": [
+        {
+          "license": {
+            "name": "Aeonics Source Available License (ASAL)"
+          }
+        }
+      ]
+    },
+	{
       "type": "library",
       "bom-ref": "aeonics-core",
       "name": "aeonics-core",
@@ -82,7 +110,8 @@
       "name": "sqlite-jdbc",
       "versionRange": "vers:java/>=3.50.2.0",
       "description": "SQLite JDBC driver",
-      "scope": "required",
+      "scope": "optional",
+	  "isExternal": true,
       "supplier": {
         "name": "Xerial"
       },
@@ -101,6 +130,7 @@
       "versionRange": "vers:java/>=2.5.3",
       "description": "JDBC driver for MariaDB and MySQL",
       "scope": "optional",
+	  "isExternal": true,
       "supplier": {
         "name": "MariaDB Corporation"
       },
@@ -119,6 +149,7 @@
       "versionRange": "vers:java/>=42.2.23",
       "description": "PostgreSQL JDBC Driver",
       "scope": "optional",
+	  "isExternal": true,
       "supplier": {
         "name": "PostgreSQL Global Development Group"
       },
@@ -133,8 +164,32 @@
   ],
   "dependencies": [
     {
+      "ref": "aeonics",
+      "dependsOn": [ "jre" ]
+    },
+	{
+      "ref": "aeonics-core",
+      "dependsOn": [ "aeonics" ]
+    },
+	{
+      "ref": "aeonics-http",
+      "dependsOn": [ "aeonics-core" ]
+    },
+	{
+      "ref": "aeonics-git",
+      "dependsOn": [ "aeonics-core", "aeonics-http" ]
+    },
+	{
+      "ref": "aeonics-mcp",
+      "dependsOn": [ "aeonics-core", "aeonics-http" ]
+    },
+	{
+      "ref": "uniqorn",
+      "dependsOn": [ "aeonics-core", "aeonics-http", "aeonics-git", "aeonics-mcp" ]
+    },
+	{
       "ref": "uniqorn-instance",
-      "dependsOn": [ "aeonics-core", "aeonics-http", "aeonics-git", "aeonics-mcp", "uniqorn", "aeonics-frontend", "sqlite-jdbc" ]
+      "dependsOn": [ "uniqorn", "aeonics-frontend" ]
     }
   ]
 }

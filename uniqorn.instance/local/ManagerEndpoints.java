@@ -10,6 +10,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.stream.Stream;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -311,7 +312,7 @@ public class ManagerEndpoints
 				.summary("Login")
 				.description("The user login name")
 				.format(Parameter.Format.TEXT)
-				.optional(false)
+				.optional(true)
 				.min(3)
 				.max(50))
 			.add(new Parameter("name")
@@ -338,11 +339,22 @@ public class ManagerEndpoints
 						if( Registry.of(User.class).filter(u -> u.hasRole(uniqorn.internal.Globals.ROLE_CONSUMER)).size() >= Manager.of(Config.class).get(Api.class, "consumers").asInt() )
 							throw new HttpException(429, "Maximum number of consumer users reached");
 						
-						// consumer have random login
-						data.put("login", Manager.of(Security.class).randomHash());
+						if( data.isEmpty("login") )
+						{
+							// consumer have random login if not defined explicitly
+							data.put("login", Manager.of(Security.class).randomHash());
+						}
+						else
+						{
+							if( Registry.of(User.class).get(u -> u.name().equals(data.asString("login")) || u.login().equals(data.asString("login"))) != null )
+								throw new HttpException(400, "Duplicate user");
+						}
 					}
 					else
 					{
+						if( data.isEmpty("login") )
+							throw new HttpException(400, "Login cannot be empty");
+						
 						if( Registry.of(User.class).filter(u -> !u.hasRole(Role.SUPERADMIN) && (u.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) || u.hasRole(uniqorn.internal.Globals.ROLE_CONTRIBUTOR))).size() >= Manager.of(Config.class).get(Api.class, "users").asInt() )
 							throw new HttpException(429, "Maximum number of users reached");
 					}
@@ -355,7 +367,7 @@ public class ManagerEndpoints
 						.parameter("login", data.asString("login"));
 					
 					if( data.asString("type").equals("consumer") )
-						user.addRelation("roles", Registry.of(Role.class).get(uniqorn.internal.Globals.ROLE_CONSUMER));
+						user.addRelation("roles", Registry.of(Role.class).get(uniqorn.internal.Globals.ROLE_CONSUMER)).addRelation("groups", Group.USERS);
 					else if( data.asString("type").equals("contributor") )
 						user.addRelation("roles", Registry.of(Role.class).get(uniqorn.internal.Globals.ROLE_CONTRIBUTOR)).addRelation("groups", Group.USERS);
 					else if( data.asString("type").equals("manager") )
@@ -584,6 +596,86 @@ public class ManagerEndpoints
 			.url(ROOT + "/user/{id}/key")
 			.method("GET")
 			;
+			
+		private static final Endpoint.Rest.Type userAnonymize = new Endpoint.Rest() { }
+			.template()
+			.summary("Anonymize user")
+			.description("This endpoint anonymizes a consumer user by assigning a random user name and prevent login")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The user id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				synchronized(_User.class)
+				{
+					User.Type user = Registry.of(User.class).get(data.asString("id"));
+					if( user == null || user.internal() || !user.hasRole(uniqorn.internal.Globals.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+					
+					user.parameter("login", Manager.of(Security.class).randomHash());
+					
+					// find the local provider
+					Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
+					if( provider != null )
+						provider.leave(user);
+					
+					return Data.map().put("success", true);
+				}
+			})
+			.url(ROOT + "/user/{id}/anonymize")
+			.method("POST")
+			;
+			
+		private static final Endpoint.Rest.Type userEnable = new Endpoint.Rest() { }
+			.template()
+			.summary("Enable user")
+			.description("This endpoint enables a consumer user to login by assigning a user name and generating a password")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The user id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("login")
+				.summary("Login")
+				.description("The user login name")
+				.format(Parameter.Format.TEXT)
+				.optional(false)
+				.min(3)
+				.max(50))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				synchronized(_User.class)
+				{
+					User.Type user = Registry.of(User.class).get(data.asString("id"));
+					if( user == null || user.internal() || !user.hasRole(uniqorn.internal.Globals.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+					
+					if( Registry.of(User.class).get(u -> u != user && (u.name().equals(data.asString("login")) || u.login().equals(data.asString("login")))) != null )
+						throw new HttpException(400, "Duplicate login");
+					
+					user.parameter("login", data.get("login"));
+					
+					// find the local provider
+					Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
+					if( provider == null ) throw new HttpException(500, "Security provider unavailable");
+					
+					if( provider.supports(user.login()) ) throw new HttpException(400, "User is already enabled");
+					
+					String password = Manager.of(Security.class).randomHash();
+					provider.join(Data.map().put("password", password).put("username", user.login()), user);
+					
+					return Data.map().put("password", password);
+				}
+			})
+			.url(ROOT + "/user/{id}/enable")
+			.method("POST")
+			;
 		
 		private static final Endpoint.Rest.Type userReset = new Endpoint.Rest() { }
 			.template()
@@ -603,7 +695,9 @@ public class ManagerEndpoints
 				{
 					User.Type user = Registry.of(User.class).get(data.asString("id"));
 					if( user == null || user.internal() ) throw new HttpException(404, "Unknown user");
-					if( !user.hasRole(uniqorn.internal.Globals.ROLE_CONTRIBUTOR) && !user.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) ) throw new HttpException(404, "Unknown user");
+					if( !user.hasRole(uniqorn.internal.Globals.ROLE_CONTRIBUTOR) && 
+						!user.hasRole(uniqorn.internal.Globals.ROLE_MANAGER) &&
+						!user.hasRole(uniqorn.internal.Globals.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
 
 					// find the local provider
 					Provider.Type provider = Registry.of(Provider.class).get(p -> p.type().equals(StringUtils.toLowerCase(Provider.Local.class)));
@@ -627,7 +721,110 @@ public class ManagerEndpoints
 			.url(ROOT + "/user/{id}/password")
 			.method("PATCH")
 			;
-			
+		
+		private static final Endpoint.Rest.Type userTag = new Endpoint.Rest() { }
+			.template()
+			.summary("Set or unset a tag on the user")
+			.description("This endpoint can be used to set a tag attribute on a consumer user. If the tag value is empty, it is unset.")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The user id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("tag")
+				.summary("Tag")
+				.description("The tag name")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ALPHANUM)
+				.max(30).min(1)
+				.optional(false))
+			.add(new Parameter("value")
+				.summary("Value")
+				.description("The tag value")
+				.format(Parameter.Format.TEXT)
+				.max(512).min(0)
+				.optional(true))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				synchronized(_User.class)
+				{
+					User.Type user = Registry.of(User.class).get(data.asString("id"));
+					if( user == null || user.internal() || !user.hasRole(uniqorn.internal.Globals.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+					
+					Data attributes = user.valueOf("attributes");
+					if( !attributes.isMap() )
+					{
+						attributes = Data.map();
+						user.parameter("attributes", attributes);
+					}
+					
+					if( data.isEmpty("value") )
+						attributes.remove(data.asString("tag"));
+					else
+						attributes.put(data.asString("tag"), data.get("value"));
+					
+					return Data.map().put("success", true);
+				}
+			})
+			.url(ROOT + "/user/{id}/tag")
+			.method("POST")
+			;
+
+		private static final Endpoint.Rest.Type userTags = new Endpoint.Rest() { }
+			.template()
+			.summary("Set all tags on the user")
+			.description("This endpoint replaces the full set of tag attributes on a consumer user. Any tag not present in the submitted object is removed. Tag keys must be alphanumeric, 1-30 chars; values are text, up to 512 chars.")
+			.add(new Parameter("id")
+				.summary("Id")
+				.description("The user id")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ID)
+				.optional(false))
+			.add(new Parameter("tags")
+				.summary("Tags")
+				.description("The full map of tag name to tag value. Pass an empty object to clear all tags.")
+				.format(Parameter.Format.JSON)
+				.rule(Parameter.Rule.JSON_MAP)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process(data ->
+			{
+				synchronized(_User.class)
+				{
+					User.Type user = Registry.of(User.class).get(data.asString("id"));
+					if( user == null || user.internal() || !user.hasRole(uniqorn.internal.Globals.ROLE_CONSUMER) ) throw new HttpException(404, "Unknown user");
+
+					Data tags = data.get("tags");
+					for( Map.Entry<String, Data> entry : tags.entrySet() )
+					{
+						String key = entry.getKey();
+						if( key == null || key.length() < 1 || key.length() > 30 ) throw new HttpException(400, "Invalid tag name");
+						if( !StringUtils.isAlphaNum(key, true) ) throw new HttpException(400, "Invalid tag name");
+						if( entry.getValue().asString().length() > 512 ) throw new HttpException(400, "Tag value too long");
+					}
+
+					Data attributes = user.valueOf("attributes");
+					if( !attributes.isMap() )
+					{
+						attributes = Data.map();
+						user.parameter("attributes", attributes);
+					}
+
+					attributes.clear();
+					for( Map.Entry<String, Data> entry : tags.entrySet() )
+						attributes.put(entry.getKey(), entry.getValue().asString());
+					
+					return Data.map().put("success", true);
+				}
+			})
+			.url(ROOT + "/user/{id}/tags")
+			.method("PUT")
+			;
+
 		private static final Endpoint.Rest.Type userRotate = new Endpoint.Rest() { }
 			.template()
 			.summary("Rotate user key")

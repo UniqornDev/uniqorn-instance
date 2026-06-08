@@ -1211,7 +1211,7 @@ public class ContributorEndpoints
 		private static final Endpoint.Rest.Type userDetails = new Endpoint.Rest() { }
 			.template()
 			.summary("User details")
-			.description("This endpoint returns the user name, login, type and all groups and roles")
+			.description("This endpoint returns the user name, login, type and all tags, groups, and roles")
 			.add(new Parameter("id")
 				.summary("Id")
 				.description("The user id")
@@ -1255,6 +1255,7 @@ public class ContributorEndpoints
 							user.hasRole(Globals.ROLE_MANAGER) ? "manager" : null)
 						.put("roles", roles)
 						.put("groups", groups)
+						.put("tags", user.hasRole(Globals.ROLE_CONSUMER) ? user.valueOf("attributes") : Data.map())
 						;
 				}
 			})

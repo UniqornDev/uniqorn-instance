@@ -199,14 +199,18 @@ public class Main extends Plugin
 		try {
 			Factory.of(Storage.class).get(uniqorn.storage.File.class).create(Data.map().put("id", Constants.LOCAL_STORAGE).put("parameters", 
 				Data.map().put("root", Manager.of(Config.class).get(Api.class, "rootstorage").asString() + "/" + Manager.of(Config.class).get(Api.class, "storage").asString())))
-				.name("Local Storage").internal(true).snapshotMode(SnapshotMode.NONE);
+				.name("Local Storage").internal(true).snapshotMode(SnapshotMode.NONE)
+				.<Storage.Type>cast().put(".empty", "");
 		} catch (Exception e) { Manager.of(Logger.class).severe(Api.class, e); }
 		
 		try {
+			Class.forName("org.sqlite.JDBC"); 
 			Factory.of(Database.class).get(uniqorn.database.Sqlite.class).create(Data.map().put("id", Constants.LOCAL_DATABASE).put("parameters",
 				Data.map().put("path", Manager.of(Config.class).get(Api.class, "rootstorage").asString() + "/" + Manager.of(Config.class).get(Api.class, "database").asString())))
 				.name("Local Database").internal(true).snapshotMode(SnapshotMode.NONE);
-		} catch (Exception e) { Manager.of(Logger.class).severe(Api.class, e); }
+		}
+		catch (ClassNotFoundException e) { /* skip the local database */ }
+		catch (Exception e) { Manager.of(Logger.class).severe(Api.class, e); }
 
 		try {
 			Factory.of(Storage.class).get(uniqorn.storage.File.class).create(Data.map().put("id", Constants.APP_STORAGE).put("parameters",

@@ -554,6 +554,10 @@ class StoragePage extends Page
 				Node.p([
 					Node.span({className: 'title'}, Translator.get('storage.database.ssl')),
 					Node.span({className: 'text'}, !db.parameters.hasOwnProperty('ssl') || !!db.parameters.ssl ? Translator.get('yes') : Translator.get('no'))
+				]),
+				Node.p([
+					Node.span({className: 'title'}, Translator.get('storage.database.size')),
+					Node.span({className: 'text'}, safeHtml(db.parameters.size))
 				])
 			];
 		}
@@ -658,6 +662,10 @@ class StoragePage extends Page
 				Node.fieldset([
 					Node.label(Translator.get('storage.database.ssl')),
 					Node.input({type: 'checkbox', name: 'ssl', placeholder: Translator.get('storage.database.ssl')})
+				]),
+				Node.fieldset([
+					Node.label(Translator.get('storage.database.size')),
+					Node.input({type: 'number', name: 'size', value: 10, min: 1, placeholder: Translator.get('storage.database.size')})
 				])
 			];
 		}

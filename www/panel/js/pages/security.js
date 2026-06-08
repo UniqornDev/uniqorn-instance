@@ -464,12 +464,11 @@ class SecurityPage extends Page
 			Node.h2(Translator.get('security.consumer.add')),
 			Node.form([
 				Node.input({type: 'text', name: 'name', placeholder: Translator.get('security.consumer.name')}),
-				Node.input({type: 'hidden', name: 'login', value: 'undefined'}),
 				Node.input({type: 'hidden', name: 'type', value: 'consumer'}),
 			])
 		).then((form) =>
 		{
-			if( !form.elements.login.value || !form.elements.name.value )
+			if( !form.elements.name.value )
 			{
 				Notify.warning(Translator.get('security.consumer.empty'));
 				return;
@@ -496,6 +495,12 @@ class SecurityPage extends Page
 	{
 		var self = this;
 
+		function isLoginEnabled(login)
+		{
+			if( !login ) return false;
+			return !/^[0-9a-f]{30,}$/i.test(login);
+		}
+
 		var m = Modal.custom([], true);
 		var div = m.dom.firstChild;
 		div.classList.add('wait');
@@ -505,9 +510,21 @@ class SecurityPage extends Page
 			div.classList.remove('wait');
 
 			let user = result.response;
+			let enabled = isLoginEnabled(user.login);
+			let tags = user.tags || {};
+			let tagKeys = Object.keys(tags).sort();
+
 			Node.append(div,
 			[
 				Node.h2(safeHtml(user.name)),
+				Node.div(Node.div({className: 'detail'}, [
+					Node.p([
+						Node.span({className: 'title'}, Translator.get('security.consumer.login')),
+						enabled
+							? Node.span({className: 'value'}, safeHtml(user.login))
+							: Node.span({className: 'value'}, Translator.get('security.consumer.login.anonymous'))
+					])
+				])),
 				Node.p([
 					Translator.get('security.consumer.groups'),
 					config.user.level === 'manager' ? Node.div({className: 'small_action'},
@@ -524,6 +541,18 @@ class SecurityPage extends Page
 					]) : null
 				]),
 				Node.ol({classList: 'short'}, result.response.roles.map(r => Node.li({className: 'card'}, [Node.span({className: 'icon'}, 'badge'), safeHtml(r.name)]))),
+				Node.p([
+					Translator.get('security.consumer.tags'),
+					config.user.level === 'manager' ? Node.div({className: 'small_action'},
+					[
+						Node.span({className: 'icon', click: () => { self.editTags(user.id, tags, m); }, dataset: {tooltip: Translator.get('update')}}, 'edit'),
+					]) : null
+				]),
+				Node.ol({classList: 'short'}, tagKeys.map(k => Node.li({className: 'card'},
+				[
+					Node.span({className: 'icon'}, 'label'),
+					Node.span([safeHtml(k), ': ', safeHtml(String(tags[k]))])
+				]))),
 				config.user.level === 'manager' ? Node.div({className: 'action'},
 				[
 					Node.button({className: 'raised', click: function(e)
@@ -572,6 +601,91 @@ class SecurityPage extends Page
 					}}, [
 						Node.span({className: 'icon'}, 'sync'),
 						Node.span(Translator.get('security.consumer.rotate'))]),
+					Node.br(),
+					!enabled ? Node.button({className: 'raised', click: function(e)
+					{
+						e.preventDefault();
+						Modal.prompt(Translator.get('security.consumer.enable.prompt'),
+							Node.form([
+								Node.input({type: 'text', name: 'login', placeholder: Translator.get('security.consumer.login')})
+							])
+						).then((form) =>
+						{
+							if( !form.elements.login.value )
+							{
+								Notify.warning(Translator.get('security.consumer.enable.empty'));
+								return;
+							}
+
+							self.dom.classList.add('wait');
+							Ajax.post('/api/manager/user/' + encodeURIComponent(id) + '/enable', {data: {login: form.elements.login.value}}).then((result) =>
+							{
+								self.dom.classList.remove('wait');
+								Notify.success(Translator.get('security.consumer.enable.success'));
+								Modal.alert(Translator.get('security.consumer.enable.result', result.response.password));
+								m.ok();
+							}, (error) =>
+							{
+								self.dom.classList.remove('wait');
+								if( error.response && error.response.error && error.response.error.message )
+									Notify.error(safeHtml(error.response.error.message));
+								else
+									Notify.error(Translator.get('security.consumer.enable.error'));
+							});
+						}, () => {});
+					}}, [
+						Node.span({className: 'icon'}, 'lock_open'),
+						Node.span(Translator.get('security.consumer.enable'))]) : null,
+					enabled ? Node.button({className: 'raised', click: function(e)
+					{
+						e.preventDefault();
+						Modal.confirm(Translator.get('security.consumer.reset.confirm', user.name), [Translator.get('reset'), Translator.get('cancel')]).then(index =>
+						{
+							if( index > 0 ) return;
+
+							self.dom.classList.add('wait');
+							Ajax.patch('/api/manager/user/' + encodeURIComponent(id) + '/password').then((result) =>
+							{
+								self.dom.classList.remove('wait');
+								Notify.success(Translator.get('security.consumer.reset.success'));
+								Modal.alert(Translator.get('security.consumer.reset.result', result.response.password));
+							}, (error) =>
+							{
+								self.dom.classList.remove('wait');
+								if( error.response && error.response.error && error.response.error.message )
+									Notify.error(safeHtml(error.response.error.message));
+								else
+									Notify.error(Translator.get('security.consumer.reset.error'));
+							});
+						}, () => {});
+					}}, [
+						Node.span({className: 'icon'}, 'key'),
+						Node.span(Translator.get('security.consumer.reset_password'))]) : null,
+					enabled ? Node.button({className: 'raised', click: function(e)
+					{
+						e.preventDefault();
+						Modal.confirm(Translator.get('security.consumer.anonymize.confirm', user.name), [Translator.get('security.consumer.anonymize'), Translator.get('cancel')]).then(index =>
+						{
+							if( index > 0 ) return;
+
+							self.dom.classList.add('wait');
+							Ajax.post('/api/manager/user/' + encodeURIComponent(id) + '/anonymize').then(() =>
+							{
+								self.dom.classList.remove('wait');
+								Notify.success(Translator.get('security.consumer.anonymize.success'));
+								m.ok();
+							}, (error) =>
+							{
+								self.dom.classList.remove('wait');
+								if( error.response && error.response.error && error.response.error.message )
+									Notify.error(safeHtml(error.response.error.message));
+								else
+									Notify.error(Translator.get('security.consumer.anonymize.error'));
+							});
+						}, () => {});
+					}}, [
+						Node.span({className: 'icon'}, 'person_off'),
+						Node.span(Translator.get('security.consumer.anonymize'))]) : null,
 					Node.br(),
 					Node.button({click: function(e)
 					{
@@ -636,6 +750,87 @@ class SecurityPage extends Page
 				Notify.error(Translator.get('fetch.error'));
 			m.nok();
 		});
+	}
+
+	editTags(id, tags, m)
+	{
+		var self = this;
+
+		var makeRow = function(key, value)
+		{
+			var row = Node.div({className: 'tag_row'},
+			[
+				Node.input({type: 'text', name: 'tag', value: key, placeholder: Translator.get('security.consumer.tag.key')}),
+				Node.input({type: 'text', name: 'value', value: value, placeholder: Translator.get('security.consumer.tag.value')}),
+				Node.span({className: 'icon', click: function(e)
+				{
+					e.preventDefault();
+					row.remove();
+				}, dataset: {tooltip: Translator.get('remove')}}, 'close')
+			]);
+			return row;
+		};
+
+		var tagKeys = Object.keys(tags || {}).sort();
+		var rows = Node.div(tagKeys.map(k => makeRow(k, String(tags[k]))));
+
+		var m2 = Modal.custom([
+			Node.p(Translator.get('security.consumer.tags.edit')),
+			rows,
+			Node.div({className: 'small_action'},
+			[
+				Node.span({className: 'icon', click: function(e)
+				{
+					e.preventDefault();
+					rows.append(makeRow('', ''));
+				}, dataset: {tooltip: Translator.get('security.consumer.tag.add')}}, 'add')
+			]),
+			Node.div({className: 'action'},
+			[
+				Node.button({click: function(e)
+				{
+					e.preventDefault();
+
+					var tagsMap = {};
+					var entries = rows.querySelectorAll('.tag_row');
+					for( var i = 0; i < entries.length; i++ )
+					{
+						var key = entries[i].querySelector('input[name="tag"]').value.trim();
+						if( !key ) continue;
+						if( Object.prototype.hasOwnProperty.call(tagsMap, key) )
+						{
+							Notify.warning(Translator.get('security.consumer.tag.duplicate', key));
+							return;
+						}
+						tagsMap[key] = entries[i].querySelector('input[name="value"]').value;
+					}
+
+					self.dom.classList.add('wait');
+					Ajax.put('/api/manager/user/' + encodeURIComponent(id) + '/tags', {data: {tags: JSON.stringify(tagsMap)}}).then(() =>
+					{
+						self.dom.classList.remove('wait');
+						Notify.success(Translator.get('security.consumer.tag.success'));
+						m.ok();
+						m2.ok();
+						self.showConsumer(id);
+					}, (error) =>
+					{
+						self.dom.classList.remove('wait');
+						if( error.response && error.response.error && error.response.error.message )
+							Notify.error(safeHtml(error.response.error.message));
+						else
+							Notify.error(Translator.get('security.consumer.tag.error'));
+					});
+				}}, Translator.get('save')),
+				Node.button({click: function(e)
+				{
+					e.preventDefault();
+					m2.ok();
+				}}, Translator.get('cancel')),
+			])
+		], true);
+
+		rows.append(makeRow('', ''));
 	}
 
 	codeConsumer()

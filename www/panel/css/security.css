@@ -13,3 +13,7 @@ li.card:hover { background-color: #747caa60; }
 .bicolumn > div { flex: 1 1 50%; min-width: 17rem; }
 .bicolumn > div > p { text-align: center; }
 .bicolumn > div > ol { list-style: none; border: 1px solid #0004; padding: 1rem; width: 100%; height: 15rem; overflow: auto; }
+
+.tag_row { display: flex; gap: 1rem; align-items: center; }
+.tag_row .icon { cursor: pointer; }
+.tag_row .icon:hover { color: var(--pink); }
