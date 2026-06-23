@@ -59,6 +59,10 @@ Between the two requests we added a `name` parameter and a `hello` response
 field. A live endpoint's schema changed without a restart and without dropping
 memory states and in-flight traffic. 
 
+**▶ Watch the 22-second demo** (push to live, change between two requests):
+
+https://github.com/user-attachments/assets/d2776402-66ca-4744-bc60-57c5d71e1c6c
+
 > It's a double-edged blade, and it's addictive.
 
 Keep what works: canaries, reviews, rollbacks. And hot-patch for the cases 
@@ -92,7 +96,7 @@ We didn't try to hide the pipeline. We removed it.
 
 One process:
 
-- **Hot-reload runtime**: push-to-live in ~200&nbsp;ms, no downtime
+- **Hot-reload runtime**: push-to-live in well under a second, no downtime
 - **HTTP server**: built in, no reverse proxy or sidecar
 - **Git remote**: your endpoints live in git, `git push` deploys them
 - **Static hosting**: serve your whole frontend from the instance root, pretty urls and custom 404 included
