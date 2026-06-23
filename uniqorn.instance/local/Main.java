@@ -11,6 +11,7 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collection;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -39,6 +40,8 @@ import aeonics.util.Snapshotable.SnapshotMode;
 import aeonics.git.Git;
 import aeonics.git.GitRepo;
 import aeonics.git.Operations;
+import aeonics.http.HttpException;
+import aeonics.http.Router;
 import aeonics.mcp.Mcp;
 import uniqorn.Api;
 import uniqorn.Endpoint;
@@ -215,7 +218,7 @@ public class Main extends Plugin
 		try {
 			Factory.of(Storage.class).get(uniqorn.storage.File.class).create(Data.map().put("id", Constants.APP_STORAGE).put("parameters",
 				Data.map().put("root", Manager.of(Config.class).get(Api.class, "rootstorage").asString() + "/" + Manager.of(Config.class).get(Api.class, "apps").asString())))
-				.name("App Storage").internal(true).snapshotMode(SnapshotMode.NONE);
+				.name("www").internal(true).snapshotMode(SnapshotMode.NONE);
 		} catch (Exception e) { Manager.of(Logger.class).severe(Api.class, e); }
 	}
 	
@@ -250,11 +253,6 @@ public class Main extends Plugin
 
 		// Set up App Storage for static assets
 		GitSync.appStorage = Registry.of(Storage.class).get(Constants.APP_STORAGE);
-
-		new aeonics.http.Endpoint.File().template().create()
-			.url("/app/")
-			.internal(true).snapshotMode(SnapshotMode.NONE)
-			.addRelation("storage", Registry.of(Storage.class).get(Constants.APP_STORAGE));
 
 		// Initial sync of apps files from git to disk
 		try
@@ -295,7 +293,7 @@ public class Main extends Plugin
 		}), 1, ChronoUnit.HOURS);
 		
 		setDefaultsIfNeeded();
-		
+		setStaticAssetsRouting();
 		AdminEndpoints.register();
 		
 		User.Type admin = Registry.of(User.class).get((u) -> u.login().equals(Manager.of(Config.class).get(Security.class, "defaultadmin").asString()));
@@ -335,8 +333,90 @@ public class Main extends Plugin
 		}
 	}
 	
+	private void setStaticAssetsRouting()
+	{
+		aeonics.http.Endpoint.Type userAssets = new aeonics.http.Endpoint.File().template().create()
+			.snapshotMode(SnapshotMode.NONE)
+			.addRelation("storage", Registry.of(Storage.class).get(Constants.APP_STORAGE))
+			.cast();
+		Registry.of(aeonics.http.Endpoint.class).remove(userAssets);
+		userAssets.internal(true);
+		
+		// get the default https router by known id
+		Router.Type router = Registry.of(Step.class).get("10000000-1b00000000000000");
+		if( router == null )
+		{
+			Manager.of(Logger.class).warning(Api.class, "Default router for user static assets could not be set.");
+			return;
+		}
+		
+		router.onNotFound(message ->
+		{
+			String path = message.content().asString("path");
+			if( path.equals("/ae") || path.startsWith("/ae/") 
+				|| path.equals("/oauth") || path.startsWith("/oauth/")
+				|| path.equals("/panel") || path.startsWith("/panel/")
+				|| path.equals("/.well-known") || path.startsWith("/.well-known") )
+				return null;
+			
+			try
+			{
+				return userAssets.process(message);
+			}
+			catch(HttpException e)
+			{
+				// change the path to hardcoded default 404.html
+				message.content().put("path", "/404.html");
+				return userAssets.process(message).put("code", 404);
+			}
+		});
+	}
+	
+	private static final String[] DENIED_PACKAGES = {
+		"java.lang.reflect.", "java.lang.foreign.", "java.lang.instrument.", "java.lang.management.", "java.lang.module.",
+		"java.nio.file.", "java.nio.channels.", "java.net.",
+		"sun.", "com.sun.", "jdk.",
+		"javax.script.", "javax.tools.", "javax.management.", "javax.naming.", "java.rmi.", "org.graalvm.",
+		"aeonics.jit.", "aeonics.manager.", "aeonics.template."
+	};
+
+	private static final Set<String> DENIED_CLASSES = Set.of(
+		"java.lang.ClassLoader", "java.lang.Module", "java.lang.ModuleLayer",
+		"java.util.ServiceLoader", "java.lang.SecurityManager",
+		"java.security.AccessController", "java.security.Permission", "java.security.ProtectionDomain",
+		"java.lang.Runtime", "java.lang.Process", "java.lang.ProcessBuilder", "java.lang.ProcessHandle",
+		"java.io.File", "java.io.FileInputStream", "java.io.FileOutputStream", "java.io.FileReader",
+		"java.io.FileWriter", "java.io.RandomAccessFile", "java.io.Console",
+		"java.io.ObjectInputStream", "java.io.ObjectOutputStream", "java.io.Serializable", "java.io.Externalizable",
+		"java.lang.Thread", "java.lang.ThreadLocal", "java.lang.ThreadGroup",
+		"aeonics.entity.Registry", "aeonics.entity.Entity", "aeonics.Plugin"
+	);
+
 	private void recompile()
 	{
+		Config config = Manager.of(Config.class);
+		String plan = config.get(Api.class, "plan").asString();
+		if( plan.equals(Constants.PLAN_TRIAL) || plan.equals(Constants.PLAN_PERSONAL) )
+		{
+			aeonics.jit.policy.Policy.Type policy = new aeonics.jit.policy.Policy().template().create(Data.map())
+				.internal(true)
+				.<aeonics.jit.policy.Policy.Type>cast();
+			policy.inspector(classes ->
+			{
+				for( String c : classes )
+				{
+					if( DENIED_CLASSES.contains(c) )
+						throw new HttpException(422, "Use of restricted type: " + c);
+					for( String p : DENIED_PACKAGES )
+						if( c.startsWith(p) )
+							throw new HttpException(422, "Use of restricted type: " + c);
+				}
+			});
+			config.set(Api.class, "policy", policy.id());
+		}
+		else
+			config.set(Api.class, "policy", "");
+
 		// in case we boot from a restore point, then recompile all endpoints
 		for( Endpoint.Type e : Registry.of(Endpoint.class) )
 		{
