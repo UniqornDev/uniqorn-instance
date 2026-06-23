@@ -95,6 +95,7 @@ One process:
 - **Hot-reload runtime**: push-to-live in ~200&nbsp;ms, no downtime
 - **HTTP server**: built in, no reverse proxy or sidecar
 - **Git remote**: your endpoints live in git, `git push` deploys them
+- **Static hosting**: serve your whole frontend from the instance root, pretty urls and custom 404 included
 - **MCP server**: every endpoint is also an MCP tool, no wrapper, no extra layer
 - **Admin panel**: OIDC, MFA, role-based access
 - **Storage and SQL primitives**: with monitoring and rate-limiting
@@ -154,7 +155,7 @@ the trust boundary is git auth, not sandboxing.
 
 In a self-hosted deployment, you own the system and you control what runs.
 On our hosted instances, we impose
-[language restrictions](https://uniqorn.dev/doc#start-restrict) and isolation
+[code restrictions](https://uniqorn.dev/doc#start-restrict) and isolation
 so accidental footguns can't compromise the host or other tenants.
 
 If you see something, say something. Disclosure in `SECURITY.md`. SBOM in `bom.json`.
