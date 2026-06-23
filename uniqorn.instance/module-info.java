@@ -6,6 +6,7 @@ module uniqorn.instance
 	requires aeonics.http;
 	requires aeonics.git;
 	requires aeonics.mcp;
+	requires aeonics.jit;
 
 	provides aeonics.Plugin with local.Main;
 }

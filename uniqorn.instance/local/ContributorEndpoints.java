@@ -574,9 +574,6 @@ public class ContributorEndpoints
 					Workspace.Type workspace = Registry.of(Workspace.class).get(data.asString("workspace"));
 					if( workspace == null ) throw new HttpException(404, "Unknown workspace");
 					
-					String plan = Manager.of(Config.class).get(Api.class, "plan").asString();
-					if( plan.equals(Constants.PLAN_TRIAL) || plan.equals(Constants.PLAN_PERSONAL) )
-						uniqorn.Endpoint.Type.checkCode(data.asString("code"));
 					
 					String path = GitSync.src + "/" + workspace.name() + "/endpoint_" + System.nanoTime() + ".java";
 					Bare.createFile(repo().store(), repo().root(),path, data.asString("code").getBytes(StandardCharsets.ISO_8859_1), user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Create endpoint" : data.asString("message"), null);
@@ -682,9 +679,6 @@ public class ContributorEndpoints
 				
 				if( !data.isEmpty("code") )
 				{
-					String plan = Manager.of(Config.class).get(Api.class, "plan").asString();
-					if( plan.equals(Constants.PLAN_TRIAL) || plan.equals(Constants.PLAN_PERSONAL) )
-						uniqorn.Endpoint.Type.checkCode(data.asString("code"));
 					
 					Bare.createFile(repo().store(), repo().root(), e.valueOf("path").asString(), data.asString("code").getBytes(StandardCharsets.ISO_8859_1), user.name() + " <" + user.login() + ">", data.isEmpty("message") ? "Update endpoint" : data.asString("message"), null);
 					e.updateHead();
