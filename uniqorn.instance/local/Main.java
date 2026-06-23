@@ -600,7 +600,7 @@ public class Main extends Plugin
 								zip.write(s.get(Manager.of(Config.class).get(Api.class, "logs").asString() + "/" + file));
 								zip.finish();
 							}
-							s.put(zname, out.toByteArray());
+							s.put(Manager.of(Config.class).get(Api.class, "logs").asString() + "/" + zname, out.toByteArray());
 							s.remove(Manager.of(Config.class).get(Api.class, "logs").asString() + "/" + file);
 						}
 					}
