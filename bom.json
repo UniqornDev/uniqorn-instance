@@ -74,6 +74,30 @@
     },
 	{
       "type": "library",
+      "bom-ref": "aeonics-bloodstream",
+      "name": "aeonics-bloodstream",
+      "version": "1.0.0",
+      "description": "Aeonics Bloodstream Enterprise Suite",
+      "scope": "required"
+    },
+	{
+      "type": "library",
+      "bom-ref": "aeonics-jit",
+      "name": "aeonics-jit",
+      "version": "1.0.0",
+      "description": "Aeonics Just-In-Time Compilation",
+      "scope": "required"
+    },
+	{
+      "type": "library",
+      "bom-ref": "aeonics-setup",
+      "name": "aeonics-setup",
+      "version": "1.0.0",
+      "description": "Aeonics Default System",
+      "scope": "required"
+    },
+	{
+      "type": "library",
       "bom-ref": "aeonics-git",
       "name": "aeonics-git",
       "version": "1.0.0",
@@ -172,8 +196,16 @@
       "dependsOn": [ "aeonics" ]
     },
 	{
+      "ref": "aeonics-setup",
+      "dependsOn": [ "aeonics-core" ]
+    },
+	{
       "ref": "aeonics-http",
       "dependsOn": [ "aeonics-core" ]
+    },
+	{
+      "ref": "aeonics-jit",
+      "dependsOn": [ "aeonics-core", "aeonics-http" ]
     },
 	{
       "ref": "aeonics-git",
@@ -184,8 +216,12 @@
       "dependsOn": [ "aeonics-core", "aeonics-http" ]
     },
 	{
+      "ref": "aeonics-bloodstream",
+      "dependsOn": [ "aeonics-core", "aeonics-http" ]
+    },
+	{
       "ref": "uniqorn",
-      "dependsOn": [ "aeonics-core", "aeonics-http", "aeonics-git", "aeonics-mcp" ]
+      "dependsOn": [ "aeonics-bloodstream", "aeonics-core", "aeonics-jit", "aeonics-http", "aeonics-git", "aeonics-mcp", "aeonics-setup" ]
     },
 	{
       "ref": "uniqorn-instance",
