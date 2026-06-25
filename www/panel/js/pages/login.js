@@ -1,24 +1,48 @@
-import { Page, Node, Notify, Modal, Ajax, Translator, Cookie } from 'core';
-import { css, safeHtml, config, locale } from 'core';
+import { Page, Node, Notify, Modal, Ajax, Translator } from 'core';
+import { css, safeHtml, config, locale, urlValue } from 'core';
 css('login');
 await locale('default');
 
 const URL_TO_CHECK = "/api/contributor/check";
+
+// the app is registered as a public client of the RP; redirect_uri is looked up server-side from this client_id
+const CLIENT_ID = "f8f9c518ce8bf1eda6a38c4ee4ebf123528b9fd7a1a1ca6243b602e40e4b90af";
+
+function base64url(buffer)
+{
+	const bytes = new Uint8Array(buffer);
+	let str = '';
+	for( let i = 0; i < bytes.length; i++ ) str += String.fromCharCode(bytes[i]);
+	return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function randomToken()
+{
+	const bytes = new Uint8Array(32);
+	crypto.getRandomValues(bytes);
+	return base64url(bytes.buffer);
+}
+
+async function challengeOf(verifier)
+{
+	const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
+	return base64url(digest);
+}
+
 /* ======================
  * Rules for login:
  *
- * 0) check if there is a token cookie
- *     0.1) if no, go to 1
- *     1.2) if yes it means we are coming back from authentication
- *         1.2.1) remove the cookie and store token based on "remember me" preference
- *         1.2.2) go to 3
+ * 0) check the return signals on /panel
+ *     0.1) if an error is present, show the error
+ *     0.2) if a PKCE code is present, verify state, exchange it at /oidc/token for a token, store it, go to 3
+ *     0.3) else go to 1
  *
  * 1) check if there is a token in localStorage or sessionStorage
  *     1.1) if yes, go to 3
  *     1.2) else go to 2
  *
  * 2) get local provider and display login form
- *     2.1) when click on button, redirect user to login url. Upon completion it will end up back here, go to 0
+ *     2.1) when click on button, generate a PKCE verifier/challenge and redirect to the login url. Upon completion it will end up back here, go to 0
  *
  * 3) check if the token is valid
  *     3.1) if not, remove it from local storage and go to 2
@@ -52,16 +76,95 @@ class LoginPage extends Page
 	
 	rule_0()
 	{
-		var cookie = Cookie.get('token');
-		Cookie.unset('token', '/panel');
-		if( cookie )
+		// returning from the RP: an error or a one-time PKCE code lands here on /panel
+		if( urlValue('error') )
 		{
-			var storage = sessionStorage.getItem('remember') === 'true' ? localStorage : sessionStorage;
-			storage.setItem('utoken', cookie);
-			this.rule_3(cookie);
+			this.cleanUrl();
+			this.rule_error();
+			return;
 		}
-		else
-			this.rule_1();
+
+		var code = urlValue('code');
+		if( code )
+		{
+			this.rule_pkce(code);
+			return;
+		}
+
+		this.rule_1();
+	}
+
+	cleanUrl()
+	{
+		try { history.replaceState(null, document.title, location.pathname + location.hash); } catch(e) { /* ignore */ }
+	}
+
+	rule_pkce(code)
+	{
+		var self = this;
+		var div = document.getElementById('login_panel');
+		div.classList.add('wait');
+		while(div.firstChild) div.firstChild.remove();
+
+		var verifier = sessionStorage.getItem('pkce_verifier');
+		var expected = sessionStorage.getItem('pkce_state');
+		var returned = urlValue('state');
+		sessionStorage.removeItem('pkce_verifier');
+		sessionStorage.removeItem('pkce_state');
+		this.cleanUrl();
+
+		if( !verifier || !returned || returned !== expected )
+		{
+			this.rule_error();
+			return;
+		}
+
+		Ajax.post("/oidc/token", {data: {client_id: CLIENT_ID, code: code, code_verifier: verifier}}).then((result) =>
+		{
+			var token = result.response.access_token;
+			var storage = sessionStorage.getItem('remember') === 'true' ? localStorage : sessionStorage;
+			storage.setItem('utoken', token);
+			self.rule_3(token);
+		}, (error) =>
+		{
+			self.rule_error();
+		});
+	}
+
+	rule_error()
+	{
+		var self = this;
+		var div = document.getElementById('login_panel');
+		div.classList.remove('wait');
+		while(div.firstChild) div.firstChild.remove();
+
+		div.append(
+			Node.p({className: 'error'}, Translator.get('login.error.auth')),
+			Node.button({className: 'raised', click: function(e)
+			{
+				e.stopImmediatePropagation();
+				e.preventDefault();
+				self.rule_2_display();
+			}}, Translator.get('login.login'))
+		);
+	}
+
+	async startLogin(loginRedirect, remember)
+	{
+		sessionStorage.setItem('remember', remember ? 'true' : 'false');
+
+		var verifier = randomToken();
+		var state = randomToken();
+		sessionStorage.setItem('pkce_verifier', verifier);
+		sessionStorage.setItem('pkce_state', state);
+
+		var challenge = await challengeOf(verifier);
+		var sep = loginRedirect.indexOf('?') < 0 ? '?' : '&';
+		location.href = loginRedirect + sep
+			+ 'client_id=' + encodeURIComponent(CLIENT_ID)
+			+ '&code_challenge=' + encodeURIComponent(challenge)
+			+ '&code_challenge_method=S256'
+			+ '&state=' + encodeURIComponent(state);
 	}
 	
 	rule_1()
@@ -101,8 +204,7 @@ class LoginPage extends Page
 				{
 					e.stopImmediatePropagation();
 					e.preventDefault();
-					sessionStorage.setItem('remember', document.getElementById('remember_me').checked ? 'true' : 'false');
-					location.href = response.response.login_redirect;
+					self.startLogin(response.response.login_redirect, document.getElementById('remember_me').checked);
 				}}, Translator.get('login.login'))
 			);
 			div.classList.remove('wait');

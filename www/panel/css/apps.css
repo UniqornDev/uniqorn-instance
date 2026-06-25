@@ -1,0 +1,17 @@
+
+.page.apps { }
+
+.page.apps ol { margin: 0; padding: 0; list-style: none; }
+
+.page.apps li { background-color: #aaa1; padding: 1rem; margin-bottom: 1rem; }
+.page.apps li.hidden { display: none; }
+.page.apps li > h3 { display: flex; align-items: center; gap: 0.5rem; color: var(--green); padding-top: 0; padding-bottom: 0.5rem; font-weight: 400; }
+.page.apps li > h3 > span:first-child { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.page.apps li > h3 .small_action .icon { cursor: pointer; }
+.page.apps li > h3 .small_action .icon:hover { color: var(--pink); }
+
+.page.apps li > p { font-size: 0.85rem; margin: 0.2rem 0; }
+.page.apps li > p .title { display: inline-block; min-width: 7rem; color: #0008; }
+.page.apps li > p code { font-family: monospace; word-break: break-all; background-color: #aaa2; padding: 0.1rem 0.3rem; border-radius: 0.2rem; }
+
+.page.apps .empty { color: #0008; font-style: italic; }

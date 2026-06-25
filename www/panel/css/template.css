@@ -93,7 +93,7 @@ button.sensitive::before { background-color: #c20037; }
 button .icon { vertical-align: text-bottom; margin-right: 0.5rem; display: inline-block; font-size: 1.2rem; }
 
 body {
-	background-image: url(../images/b2.jpg);
+	background-image: url(../images/background.webp);
 	background-size: cover;
 	background-attachment: fixed;
 }

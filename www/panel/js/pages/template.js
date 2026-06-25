@@ -72,6 +72,10 @@ class TemplatePage extends Page
 					Node.span({className: 'icon'}, 'storage'),
 					Translator.get('menu.storage')
 				]),
+				Node.li({className: location.hash == '#apps' ? 'selected' : '', dataset: {link: 'apps'}}, [
+					Node.span({className: 'icon'}, 'devices'),
+					Translator.get('menu.apps')
+				]),
 				plan == "trial" || config.user.level === 'contributor' ? null : Node.li({className: location.hash == '#metrics' ? 'selected' : '', dataset: {link: 'metrics'}}, [
 					Node.span({className: 'icon'}, 'monitoring'),
 					Translator.get('menu.metrics')

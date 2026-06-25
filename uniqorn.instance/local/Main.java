@@ -63,6 +63,7 @@ public class Main extends Plugin
 		Lifecycle.after(Phase.RUN, this::setupMetrics);
 		Lifecycle.after(Phase.RUN, this::setupLogs);
 		Lifecycle.after(Phase.RUN, this::recompile);
+		Lifecycle.after(Phase.RUN, this::registerApps);
 	}
 	
 	private void onLoad()
@@ -301,6 +302,28 @@ public class Main extends Plugin
 			admin.addRelation("roles", Globals.ROLE_MANAGER);
 	}
 	
+	private void registerApps()
+	{
+		aeonics.http.Endpoint.Type ep = Registry.of(aeonics.http.Endpoint.class).get("POST /api/admin/oidc/app");
+		if( ep == null )
+		{
+			Manager.of(Logger.class).warning(Api.class, "App registration endpoint unavailable; /panel app not registered");
+			return;
+		}
+
+		try
+		{
+			ep.<aeonics.http.Endpoint.Rest.Type>cast().process(Data.map()
+				.put("client_id", Constants.PANEL_CLIENT_ID)
+				.put("redirect_uri", "/panel")
+				.put("name", "Instance Panel"));
+		}
+		catch(Exception e)
+		{
+			Manager.of(Logger.class).warning(Api.class, "Could not register /panel app: " + e.getMessage());
+		}
+	}
+
 	private void setDefaultsIfNeeded()
 	{
 		Config c = Manager.of(Config.class);

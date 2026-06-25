@@ -68,6 +68,7 @@ public class ContributorEndpoints
 		_Storage.register();
 		_Database.register();
 		_Explorer.register();
+		_App.register();
 	}
 	
 	// ========================================
@@ -1260,10 +1261,122 @@ public class ContributorEndpoints
 	
 	// ========================================
 	//
+	// APP (OIDC public client registration)
+	//
+	// ========================================
+
+	private static class _App
+	{
+		private static void register() { }
+
+		/**
+		 * Looks up one of the OIDC broker's admin app-registration endpoints and invokes it in-process.
+		 * The in-process call is not subject to the broker's superadmin http policy, so access here is
+		 * governed by the contributor policy that already gates this endpoint.
+		 * @param signature the target endpoint registry name, e.g. "GET /api/admin/oidc/app"
+		 * @param params the parameters to forward to the broker endpoint
+		 * @param user the calling user, forwarded for completeness
+		 * @return the broker endpoint response
+		 * @throws HttpException 503 when the broker is not present, or the broker's own error otherwise
+		 */
+		private static Data broker(String signature, Data params, User.Type user)
+		{
+			aeonics.http.Endpoint.Type ep = Registry.of(aeonics.http.Endpoint.class).get(signature);
+			if( ep == null ) throw new HttpException(503, "Login broker unavailable");
+			try { return ep.<aeonics.http.Endpoint.Rest.Type>cast().process(params, user, null); }
+			catch(HttpException e) { throw e; }
+			catch(Exception e) { throw new HttpException(500, e.getMessage()); }
+		}
+
+		private static final Endpoint.Rest.Type appList = new Endpoint.Rest() { }
+			.template()
+			.summary("List client apps")
+			.description("This endpoint lists the frontend client applications registered against the login broker, excluding the instance panel itself.")
+			.create()
+			.<Rest.Type>cast()
+			.process((data, user) ->
+			{
+				Data apps = _App.broker("GET /api/admin/oidc/app", Data.map(), user);
+				Data list = Data.list();
+				for( Data app : apps )
+				{
+					if( Constants.PANEL_CLIENT_ID.equals(app.asString("client_id")) ) continue;
+					list.add(Data.map()
+						.put("client_id", app.asString("client_id"))
+						.put("redirect_uri", app.asString("redirect_uri"))
+						.put("name", app.asString("name")));
+				}
+				return list;
+			})
+			.url(ROOT + "/oidc/app")
+			.method("GET")
+			;
+
+		private static final Endpoint.Rest.Type appCreate = new Endpoint.Rest() { }
+			.template()
+			.summary("Register a client app")
+			.description("This endpoint registers a frontend client application that uses the login broker as a PKCE public client. A client_id is generated and returned.")
+			.add(new Parameter("name")
+				.summary("Name")
+				.description("A human readable name for the application")
+				.format(Parameter.Format.TEXT)
+				.optional(false)
+				.min(1).max(100))
+			.add(new Parameter("redirect_uri")
+				.summary("Redirect URI")
+				.description("The redirect URI that will receive the authorization code. Either a full http(s) URL, or a single leading-slash path for an instance-local app.")
+				.format(Parameter.Format.TEXT)
+				.optional(false)
+				.min(2).max(512))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, user) ->
+			{
+				if( data.asString("redirect_uri").equals("/panel") )
+					throw new HttpException(403, "The /panel app is built-in and cannot be registered");
+				
+				// client_id intentionally omitted so the broker generates a fresh one
+				Data result = _App.broker("POST /api/admin/oidc/app", Data.map()
+					.put("redirect_uri", data.asString("redirect_uri"))
+					.put("name", data.asString("name")), user);
+				return Data.map()
+					.put("client_id", result.asString("client_id"))
+					.put("redirect_uri", result.asString("redirect_uri"));
+			})
+			.url(ROOT + "/oidc/app")
+			.method("POST")
+			;
+
+		private static final Endpoint.Rest.Type appDelete = new Endpoint.Rest() { }
+			.template()
+			.summary("Remove a client app")
+			.description("This endpoint removes a registered frontend client application. The instance panel application cannot be removed.")
+			.add(new Parameter("client_id")
+				.summary("Client id")
+				.description("The id of the application to remove")
+				.format(Parameter.Format.TEXT)
+				.rule(Parameter.Rule.ALPHANUM)
+				.optional(false))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, user) ->
+			{
+				if( Constants.PANEL_CLIENT_ID.equals(data.asString("client_id")) )
+					throw new HttpException(403, "Cannot remove the instance panel application");
+				_App.broker("DELETE /api/admin/oidc/app", Data.map().put("client_id", data.asString("client_id")), user);
+				return Data.map().put("success", true);
+			})
+			.url(ROOT + "/oidc/app/{client_id}")
+			.method("DELETE")
+			;
+	}
+
+	// ========================================
+	//
 	// STORAGE
 	//
 	// ========================================
-	
+
 	private static class _Storage
 	{
 		private static void register() { }

@@ -13,6 +13,13 @@ public class Constants
 	public static final String PLAN_ENTERPRISE = "enterprise";
 	public static final String PLAN_CUSTOM = "custom";
 
+	/**
+	 * The fixed public-client id of the first-party instance panel app, registered against the OIDC
+	 * broker at boot ({@code Main.registerApps}). Referenced by the tenant-facing app management
+	 * endpoints to keep this system registration hidden and undeletable.
+	 */
+	public static final String PANEL_CLIENT_ID = "f8f9c518ce8bf1eda6a38c4ee4ebf123528b9fd7a1a1ca6243b602e40e4b90af";
+
 	public static final String ROOT_STORAGE = "22200000-2500000000000000";
 	public static final String LOCAL_STORAGE = "22200000-2400000000000000";
 	public static final String LOCAL_DATABASE = "22200000-2600000000000000";
