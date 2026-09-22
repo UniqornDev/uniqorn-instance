@@ -74,6 +74,56 @@ public class ManagerEndpoints
 	private static class _System
 	{
 		private static void register() { }
+
+		private static final Endpoint.Rest.Type safecodeSet = new Endpoint.Rest() { }
+			.template()
+			.summary("Set safe code execution")
+			.description("This endpoint enables or disables code restrictions for the instance. When enabled (value=true, "
+				+ "the default), published code is checked against a denylist of types at compile time. When disabled "
+				+ "(value=false), published code may use any type. "
+				+ "(Re)enabling code restrictions will reboots the instance to apply code constraints immediately.")
+			.add(new Parameter("value")
+				.summary("Safe")
+				.description("True to enforce code restrictions (safe), false to lift them (unsafe).")
+				.format(Parameter.Format.BOOLEAN)
+				.rule(Parameter.Rule.BOOLEAN)
+				.optional(false))
+			.add(new Parameter("mfa")
+				.summary("Multifactor")
+				.description("The multifactor check")
+				.format(Parameter.Format.TEXT)
+				.optional(false)
+				.max(100))
+			.create()
+			.<Rest.Type>cast()
+			.process((data, user) ->
+			{
+				if( !Multifactor.check(user, Data.map().put("otp", data.asString("mfa"))) )
+					throw new HttpException(400, "Invalid multifactor confirmation");
+
+				synchronized(_System.class)
+				{
+					boolean value = data.asBool("value");
+					if( value == Manager.of(Config.class).get(Api.class, "safecode").asBool() )
+						return Data.map().put("success", true);
+
+					String plan = Manager.of(Config.class).get(Api.class, "plan").asString();
+					if( !value && !Constants.DEDICATED_PLANS.contains(plan) )
+						throw new HttpException(403, "You may not lift code restrictions under current plan");
+
+					Manager.of(Config.class).set(Api.class, "safecode", value);
+					Manager.of(Logger.class).severe(Api.class, "Code restrictions {} by {}", value ? "ENABLED (safe)" : "DISABLED (unsafe)", user.login());
+					Manager.of(Snapshot.class).create("auto").await();
+
+					if( value )
+						Manager.of(Scheduler.class).in((time) -> { Boot.MAIN.interrupt(); }, 100);
+
+					return Data.map().put("success", true);
+				}
+			})
+			.url(ROOT + "/safecode")
+			.method("POST")
+			;
 	}
 	
 	// ========================================

@@ -39,3 +39,14 @@
 }
 .page.endpoints .endpoint.disabled .switch::before { transform: translateX(0); }
 .page.endpoints .endpoint.disabled .switch { background-color: #ccc; }
+
+.page.endpoints .safecode { display: inline-block; margin-left: 1rem; vertical-align: middle;
+	font-size: 0.9rem; font-weight: 600; color: #000a;
+}
+.page.endpoints .safecode .icon { font-size: 1.1rem; margin-right: 0.5rem; }
+.page.endpoints .safecode.unsafe { color: var(--orange); }
+.page.endpoints .safecode.locked { opacity: 0.6; }
+.page.endpoints .safecode .switch { display: inline-block; top: -0.2rem; right: unset; margin-left: 0.5rem; }
+.page.endpoints .safecode.locked .switch { cursor: not-allowed; }
+.page.endpoints .safecode.unsafe .switch { background-color: var(--orange); }
+.page.endpoints .safecode.unsafe .switch::before { transform: translateX(0); }

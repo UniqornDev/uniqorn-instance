@@ -1,6 +1,7 @@
 package local;
 
 import java.util.Map;
+import java.util.Set;
 
 import aeonics.entity.Database;
 import aeonics.entity.Storage;
@@ -12,6 +13,14 @@ public class Constants
 	public static final String PLAN_TEAM = "team";
 	public static final String PLAN_ENTERPRISE = "enterprise";
 	public static final String PLAN_CUSTOM = "custom";
+
+	/**
+	 * Plans that run on a dedicated (non-mutualized) host. These are the only plans on which code
+	 * restrictions may be lifted: unsafe code can only compromise its own tenant when there is no
+	 * co-located tenant to reach. On a mutualized host the restrictions always apply, regardless of
+	 * the {@code unsafe} config flag.
+	 */
+	public static final Set<String> DEDICATED_PLANS = Set.of(PLAN_TEAM, PLAN_ENTERPRISE, PLAN_CUSTOM);
 
 	/**
 	 * The fixed public-client id of the first-party instance panel app, registered against the OIDC

@@ -472,7 +472,9 @@ public class ContributorEndpoints
 				}
 				else
 				{
-					Data list = Data.map().put("prefix", Manager.of(Config.class).get(Api.class, "prefix"));
+					Data list = Data.map().put("prefix", Manager.of(Config.class).get(Api.class, "prefix"))
+						.put("safecode", Manager.of(Config.class).get(Api.class, "safecode").asBool())
+						.put("dedicated", Constants.DEDICATED_PLANS.contains(Manager.of(Config.class).get(Api.class, "plan").asString()));
 					Data workspaces = Data.list();
 					
 					for( Workspace.Type w : Registry.of(Workspace.class) )

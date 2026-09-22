@@ -43,7 +43,8 @@ class EndpointsPage extends Page
 				]),
 				Node.div([
 					Translator.get('endpoints.prefix.global'),
-					Node.span({className: 'prefix g'}, safeHtml(result.response.prefix))
+					Node.span({className: 'prefix g'}, safeHtml(result.response.prefix)),
+					self.safecodeControl(result.response)
 				])
 			);
 
@@ -119,6 +120,70 @@ class EndpointsPage extends Page
 				Notify.error(Translator.get('fetch.error'));
 			self.dom.classList.remove('wait');
 		});
+	}
+
+	// =========================
+	//
+	// SAFE CODE
+	//
+	// =========================
+
+	safecodeControl(status)
+	{
+		var self = this;
+		var safe = status.safecode !== false;
+		var canToggle = typeof config !== 'undefined' && config.user && config.user.level === 'manager' && !!status.dedicated;
+
+		return Node.div({className: 'safecode' + (safe ? '' : ' unsafe') + (canToggle ? '' : ' locked'),
+			dataset: {tooltip: Translator.get(canToggle ? 'endpoints.safecode.hint' : 'endpoints.safecode.locked')}},
+		[
+			Node.span({className: 'icon'}, safe ? 'lock' : 'lock_open'),
+			Node.span(Translator.get('endpoints.safecode.label')),
+			Node.span({className: 'switch', click: function()
+			{
+				if( !canToggle ) { Notify.info(Translator.get('endpoints.safecode.locked')); return; }
+				self.toggleSafecode(safe);
+			}})
+		]);
+	}
+
+	toggleSafecode(currentSafe)
+	{
+		var self = this;
+		var target = !currentSafe; // new value: true = safe (restricted), false = unsafe
+
+		var otp = Node.input({type: 'text', name: 'otp', placeholder: Translator.get('endpoints.safecode.mfa'), autocomplete: 'one-time-code'});
+		Modal.confirm([
+			Node.h2(Translator.get('endpoints.safecode.title')),
+			Node.p(Translator.get(target ? 'endpoints.safecode.enable.confirm' : 'endpoints.safecode.disable.confirm')),
+			Node.p(Node.a({href: 'https://uniqorn.dev/doc#start-restrict', target: '_blank', rel: 'noopener'}, Translator.get('endpoints.safecode.doc'))),
+			otp
+		], [Translator.get('endpoints.safecode.apply'), Translator.get('cancel')]).then(index =>
+		{
+			if( index > 0 ) return;
+			if( !otp.value ) { Notify.warning(Translator.get('endpoints.safecode.mfa.missing')); return; }
+
+			self.dom.classList.add('wait');
+			Ajax.post('/api/manager/safecode', {data: {value: target, mfa: otp.value}}).then(() =>
+			{
+				self.dom.classList.remove('wait');
+				if( target )
+					// re-enabling safe mode reboots the instance to re-enforce restrictions
+					Notify.success(Translator.get('endpoints.safecode.rebooting'));
+				else
+				{
+					Notify.success(Translator.get('endpoints.safecode.success'));
+					self.init();
+				}
+			}, (error) =>
+			{
+				self.dom.classList.remove('wait');
+				if( error.response && error.response.error && error.response.error.message )
+					Notify.error(safeHtml(error.response.error.message));
+				else
+					Notify.error(Translator.get('endpoints.safecode.error'));
+			});
+		}, () => {});
 	}
 
 	filter(value)

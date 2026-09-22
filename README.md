@@ -130,7 +130,6 @@ walkthrough, connecting git, and wiring up MCP.
 
 - [uniqorn.dev/doc](https://uniqorn.dev/doc): concepts and guides
 - [uniqorn.dev/javadoc](https://uniqorn.dev/javadoc): full API reference
-- `AGENT.md`: prompt context for an AI agent that writes Uniqorn endpoints
 
 <img src="screenshot-2.png" alt="Claude Code with Uniqorn Agent" />
 

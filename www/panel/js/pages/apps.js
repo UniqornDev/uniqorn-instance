@@ -41,11 +41,11 @@ class AppsPage extends Page
 						Translator.get('apps.title'),
 						Node.div({className: 'small_action'},
 						[
-							Node.span({className: 'icon', click: () => { self.addApp(); }, dataset: {tooltip: Translator.get('apps.add')}}, 'add')
+							Node.span({className: 'icon', click: () => { self.addApp(); }, dataset: {tooltip: Translator.get('apps.add')}}, 'add'),
+							Node.span({className: 'icon', click: () => { Node.a({href: "https://uniqorn.dev/doc#apps", target: "_blank"}, '').click(); }, dataset: {tooltip: Translator.get('apps.doc')}}, 'help')
 						])
 					]),
 					Node.p(Translator.get('apps.explain')),
-					Node.p(Node.a({href: "https://uniqorn.dev/doc#apps", target: "_blank"}, Translator.get('apps.doc'))),
 					list.length === 0
 						? Node.p({className: 'empty'}, Translator.get('apps.empty'))
 						: Node.ol(list.map(a => Node.li({dataset: {client_id: a.client_id, name: a.name, redirect_uri: a.redirect_uri}},

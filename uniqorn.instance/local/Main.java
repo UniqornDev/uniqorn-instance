@@ -155,6 +155,13 @@ public class Main extends Plugin
 			.format(Parameter.Format.BOOLEAN)
 			.rule(Parameter.Rule.BOOLEAN)
 			.defaultValue(false));
+		config.declare(Api.class, new Parameter("safecode")
+			.summary("Safe code execution")
+			.description("When true, code restrictions apply and published code is checked against a denylist of types "
+				+ "at compile time. When false, restrictions are lifted and published code may use any type.")
+			.format(Parameter.Format.BOOLEAN)
+			.rule(Parameter.Rule.BOOLEAN)
+			.defaultValue(true));
 		config.declare(Api.class, new Parameter("git")
 			.summary("Git root directory")
 			.description("Root path of the git repository in the root storage.")
@@ -395,45 +402,121 @@ public class Main extends Plugin
 		});
 	}
 	
-	private static final String[] DENIED_PACKAGES = {
-		"java.lang.reflect.", "java.lang.foreign.", "java.lang.instrument.", "java.lang.management.", "java.lang.module.",
-		"java.nio.file.", "java.nio.channels.", "java.net.",
-		"sun.", "com.sun.", "jdk.",
-		"javax.script.", "javax.tools.", "javax.management.", "javax.naming.", "java.rmi.", "org.graalvm.",
-		"aeonics.jit.", "aeonics.manager.", "aeonics.template."
+	/**
+	 * The packages safe code may reach. Everything else is refused by absence, which is what keeps a
+	 * new JDK release or a newly exported plugin package from silently widening the surface.
+	 * <p>
+	 * Matching is on the exact package, never a prefix, so a subpackage is only reachable once it is
+	 * listed here in its own right. The JDK entries are limited to value computation because
+	 * {@code java.base} is the only JDK module the generated module reads. The platform entries are
+	 * the ones {@link Endpoint.Type#IMPORTS} injects into every endpoint, minus those refused below.
+	 */
+	private static final Set<String> ALLOWED_PACKAGES = Set.of(
+		"java.lang", "java.lang.annotation", "java.lang.runtime",
+		// required by every lambda and every string concatenation, refined in DENIED_MEMBERS
+		"java.lang.invoke",
+		"java.math", "java.text", "java.nio.charset",
+		"java.time", "java.time.chrono", "java.time.format", "java.time.temporal", "java.time.zone",
+		"java.util", "java.util.concurrent.atomic", "java.util.function", "java.util.regex", "java.util.stream",
+		"aeonics.data", "aeonics.entity", "aeonics.entity.security", "aeonics.util",
+		"uniqorn"
+	);
+
+	/**
+	 * The members refused inside an allowed package, matched by prefix on {@code package.Class.member}.
+	 * <p>
+	 * An allowed package is not uniformly safe: capability sits on individual members, and the types
+	 * carrying it cannot simply be dropped from {@link #ALLOWED_PACKAGES} because the same types are
+	 * needed for ordinary code. {@code java.lang.Class} is named by every {@code Registry.of(X.class)}
+	 * and every {@code getClass()}, {@code java.lang.System} carries both {@code currentTimeMillis}
+	 * and {@code load}, and {@code java.lang.invoke} is named by every lambda. An entry without a
+	 * member denies a type outright, and denies its nested types with it since those are spelled with
+	 * a dollar sign rather than a dot.
+	 */
+	private static final String[] DENIED_MEMBERS = {
+		// reflection: the entry points that turn a Class token into a live member
+		"java.lang.Class.forName", "java.lang.Class.newInstance",
+		"java.lang.Class.getMethod", "java.lang.Class.getDeclaredMethod",
+		"java.lang.Class.getField", "java.lang.Class.getDeclaredField",
+		"java.lang.Class.getConstructor", "java.lang.Class.getDeclaredConstructor",
+		"java.lang.Class.getClasses", "java.lang.Class.getDeclaredClasses",
+		"java.lang.Class.getClassLoader", "java.lang.Class.getModule", "java.lang.Class.getProtectionDomain",
+		"java.lang.Class.getNestHost", "java.lang.Class.getNestMembers", "java.lang.Class.getPermittedSubclasses",
+		"java.lang.Class.getRecordComponents", "java.lang.Class.getDeclaringClass",
+		"java.lang.Class.getEnclosingClass", "java.lang.Class.getEnclosingMethod", "java.lang.Class.getEnclosingConstructor",
+		"java.lang.Class.getResource",
+		// method handles: LambdaMetafactory and StringConcatFactory stay reachable, the lookup does not
+		"java.lang.invoke.MethodHandles", "java.lang.invoke.MethodHandleProxies",
+		"java.lang.invoke.MethodHandle.invoke", "java.lang.invoke.VarHandle",
+		"java.lang.invoke.ConstantBootstraps", "java.lang.invoke.SerializedLambda",
+		// native, process and runtime control
+		"java.lang.System.load", "java.lang.System.exit", "java.lang.System.getenv",
+		"java.lang.System.getProp", "java.lang.System.set",
+		"java.lang.Runtime", "java.lang.Process",
+		// class loading and module introspection
+		"java.lang.ClassLoader", "java.lang.Module",
+		"java.lang.SecurityManager", "java.lang.StackWalker",
+		"java.lang.Throwable.getStackTrace", "java.lang.StackTraceElement",
+		"java.util.ServiceLoader", "java.util.ResourceBundle",
+		// threads
+		"java.lang.Thread", "java.lang.ScopedValue", "java.util.Timer",
+		// framework internals and the entities carrying file, network and thread capability
+		"aeonics.entity.Registry", "aeonics.entity.Entity", "aeonics.entity.Step",
+		"aeonics.entity.Storage$File", "aeonics.entity.Storage$Memory", "aeonics.entity.Storage$Database"
 	};
 
-	private static final Set<String> DENIED_CLASSES = Set.of(
-		"java.lang.ClassLoader", "java.lang.Module", "java.lang.ModuleLayer",
-		"java.util.ServiceLoader", "java.lang.SecurityManager",
-		"java.security.AccessController", "java.security.Permission", "java.security.ProtectionDomain",
-		"java.lang.Runtime", "java.lang.Process", "java.lang.ProcessBuilder", "java.lang.ProcessHandle",
-		"java.io.File", "java.io.FileInputStream", "java.io.FileOutputStream", "java.io.FileReader",
-		"java.io.FileWriter", "java.io.RandomAccessFile", "java.io.Console",
-		"java.io.ObjectInputStream", "java.io.ObjectOutputStream", "java.io.Serializable", "java.io.Externalizable",
-		"java.lang.Thread", "java.lang.ThreadLocal", "java.lang.ThreadGroup",
-		"aeonics.entity.Registry", "aeonics.entity.Entity", "aeonics.Plugin"
-	);
+	/**
+	 * Tells whether safe code may reach the given type.
+	 * @param type the type name in dot form
+	 * @param module the generated module holding the compiled code, whose own types are always allowed
+	 * @return whether the type is reachable
+	 */
+	private static boolean isAllowed(String type, String module)
+	{
+		int i = type.lastIndexOf('.');
+		if( i < 0 ) return false;
+		String container = type.substring(0, i);
+		return container.equals(module) || ALLOWED_PACKAGES.contains(container);
+	}
 
 	private void recompile()
 	{
 		Config config = Manager.of(Config.class);
 		String plan = config.get(Api.class, "plan").asString();
-		if( plan.equals(Constants.PLAN_TRIAL) || plan.equals(Constants.PLAN_PERSONAL) )
+		boolean safe = config.get(Api.class, "safecode").asBool() || !Constants.DEDICATED_PLANS.contains(plan);
+		if( safe )
 		{
 			aeonics.jit.policy.Policy.Type policy = new aeonics.jit.policy.Policy().template().create(Data.map())
 				.internal(true)
 				.<aeonics.jit.policy.Policy.Type>cast();
-			policy.inspector(classes ->
+			policy.inspector(references ->
 			{
-				for( String c : classes )
+				StringBuilder refused = new StringBuilder();
+
+				// an interface leaves no trace among the invoked members: it has no constructor to chain
+				// to, and a call to an inherited default method is compiled against the implementing class
+				for( String type : references.interfaces() )
+					if( !isAllowed(type, references.module()) )
+						refused.append(refused.length() > 0 ? ", " : "").append(type);
+
+				for( String member : references.invoked() )
 				{
-					if( DENIED_CLASSES.contains(c) )
-						throw new HttpException(422, "Use of restricted type: " + c);
-					for( String p : DENIED_PACKAGES )
-						if( c.startsWith(p) )
-							throw new HttpException(422, "Use of restricted type: " + c);
+					String type = member.substring(0, member.lastIndexOf('.'));
+					if( !isAllowed(type, references.module()) )
+					{
+						refused.append(refused.length() > 0 ? ", " : "").append(type);
+						continue;
+					}
+					for( String denied : DENIED_MEMBERS )
+						if( member.startsWith(denied) )
+						{
+							refused.append(refused.length() > 0 ? ", " : "").append(member);
+							break;
+						}
 				}
+
+				if( refused.length() > 0 )
+					throw new HttpException(422, "Use of restricted type: " + refused.toString());
 			});
 			config.set(Api.class, "policy", policy.id());
 		}
